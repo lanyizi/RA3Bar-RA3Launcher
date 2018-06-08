@@ -17,11 +17,8 @@ If you are using MinGW64:
 
 ```
 g++ -c UserInterface.cpp -o UserInterface.o -Wall -std=c++17 -DUNICODE -D_UNICODE
-
 g++ -c main.cpp -o main.o -Wall -std=c++17 -DUNICODE -D_UNICODE
-
 windres -i resource.rc -o resource.res -O coff
-
 g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -static-libstdc++ -lComctl32 -lShlwapi -static -lpthread
 ```
 
