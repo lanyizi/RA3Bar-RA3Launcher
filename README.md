@@ -16,9 +16,13 @@ Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
 If you are using MinGW64:
 `
 g++ -c UserInterface.cpp -o UserInterface.o -Wall -std=c++17 -DUNICODE -D_UNICODE
+
 g++ -c main.cpp -o main.o -Wall -std=c++17 -DUNICODE -D_UNICODE
+
 windres -i resource.rc -o resource.res -O coff
+
 g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -static-libstdc++ -lComctl32 -lShlwapi -static -lpthread`
+
 
 I think Visual Studio could also build with these files without any problems, but I haven't tried to build this project with VS yet.
 
