@@ -10,7 +10,7 @@ Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
 * Control Center's Game Browser is now equipped with a simple replay parser which can display some match information such as date, game duration, map, and player list. It can also fix corrupted replays damaged by game crash.
 * If you can't open (and watch) .RA3Replay files with RA3.exe, now you can set the replay file association in a rather easy way: right click on the replay file, and choose (this new) RA3.exe in the **Open With...** menu. Then you can watch replays by just double-clicking on the file.
 
-The replay parsing functions of this project is largerly based on [louisdx's cnc3reader][https://github.com/louisdx/cnc-replayreaders/].
+The replay parsing functions of this project is largerly based on [louisdx's cnc3reader](https://github.com/louisdx/cnc-replayreaders/).
 
 [1]: In case you don't know how to load Mods: you need go to Control Center → Game Browser → Mod. To install a Mod, put them in `My Documents\Red Alert 3\Mods`.
 
