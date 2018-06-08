@@ -5,7 +5,7 @@ Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
 
 ## Features
 * Start Red Alert 3 nearly instantly
-* You can now click Red Alert 3's splash screen to open RA3's Control Center. This could be pretty handy if you wish to play Mods[\*][1] with current version C&C:Online Launcher.
+* You can now click Red Alert 3's splash screen to open RA3's Control Center. This could be pretty handy if you wish to play Mods[1] with current version C&C:Online Launcher.
 * You can now add custom command-line arguments directly inside the Control Center. Again, this could be pretty handy if you want to add some command line arguments when using C&C:Online Launcher.
 * Control Center's Game Browser is now equipped with a simple replay parser which can display some match information such as date, game duration, map, and player list. It can also fix corrupted replays damaged by game crash.
 * If you can't open (and watch) .RA3Replay files with RA3.exe, now you can set the replay file association in a rather easy way: right click on the replay file, and choose (this new) RA3.exe in the **Open With...** menu. Then you can watch replays by just double-clicking on the file.
@@ -25,7 +25,7 @@ I think Visual Studio could also build with these files without any problems, bu
 ## About this program
 Recently a lot of people needs to wait for like 30 seconds when launching Red Alert 3.
 
-This is because Red Alert 3's game launcher, **RA3.exe**, will firstly check "Comrade News"[\*][2] before starting the main game process. But EA recently shut down the server files.ea.com, and RA3.exe would need to wait until the connection times out, before starting the game.
+This is because Red Alert 3's game launcher, **RA3.exe**, will firstly check "Comrade News"[2] before starting the main game process. But EA recently shut down the server files.ea.com, and RA3.exe would need to wait until the connection times out, before starting the game.
 
 While this problem can be "fixed" in some rather simple way, such as y editing the host file or by cutting off the Internet connection when launching the game (so the connection to EA server would fail instantly instead of waiting 30 seconds), I thought I could write a my own RA3.exe to solve this problem. After all, RA3.exe is just a game launcher, isn't it?
 It looks like I just need write a program which calls `CreateProcess()` to start game's main process, and this should be a really simple task!
