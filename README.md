@@ -13,7 +13,7 @@ Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
 [1]: In case you don't know how to load Mods: you need go to Control Center → Game Browser → Mod. To install a Mod, put them in `My Documents\Red Alert 3\Mods`.
 
 ## How to build
-If you are using MinGW64:
+If you are using MinGW64, you can build like this:
 
 ```
 g++ -c UserInterface.cpp -o UserInterface.o -Wall -std=c++17 -DUNICODE -D_UNICODE
