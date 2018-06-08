@@ -1,0 +1,28 @@
+#include "resource.h"
+
+1 RT_MANIFEST "RA3.exe.Manifest"
+1 VERSIONINFO
+FILEVERSION    0,9,0,0
+PRODUCTVERSION 0,9,0,0
+FILETYPE VFT_APP
+{
+	BLOCK "StringFileInfo"
+	{
+		BLOCK "040904E4"
+		{
+			VALUE "CompanyName", ""
+			VALUE "FileVersion", "0.9.0.0"
+			VALUE "FileDescription", "Unofficial player-made Red Alert 3 game launcher"
+			VALUE "InternalName", ""
+			VALUE "OriginalFilename", ""
+			VALUE "ProductName", "[RA3Bar] Red Alert 3 Launcher"
+			VALUE "ProductVersion", "0.9.0.0"
+		}
+	}
+}
+
+DEFAULT_ICON    ICON   "ra3interesting.ico"
+AR_BACKGROUND   BITMAP "arbm.bmp"
+RA3BAR_LOGO     BITMAP "ra3bar.bmp"
+BUILTIN_ENGLISH RCDATA "ra3barlauncher_english.csf"
+BUILTIN_CHINESE RCDATA "ra3barlauncher_chinese.csf"
