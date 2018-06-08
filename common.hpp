@@ -16,8 +16,7 @@
 template<typename Predicate>
 struct CaseInsensitiveCompare {
 	bool operator()(wchar_t a, wchar_t b) const noexcept {
-		static auto locale = std::locale{""};
-		return Predicate{}(std::tolower(a, locale), std::tolower(b, locale));
+		return Predicate{}(std::tolower(a, std::locale::classic()), std::tolower(b, std::locale::classic()));
 	};
 };
 
@@ -152,10 +151,9 @@ inline void setLanguageToRegistry(const std::wstring& language) {
 
 template<typename InputIterator>
 LanguageData::ContainerType loadCSFStrings(InputIterator begin, InputIterator end) {
-	static const auto locale = std::locale{""};
 	auto emplacer = [](LanguageData::ContainerType& container, std::pair<std::string, std::wstring>&& newValue) {
 		for(auto& character : newValue.first) {
-			character = std::tolower(character, locale);
+			character = std::tolower(character, std::locale::classic());
 		}
 		container.emplace_hint(std::end(container), Windows::toWide(newValue.first), std::move(newValue.second));
 	};
