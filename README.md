@@ -1,4 +1,4 @@
-# RA3Bar-RA3QuickLauncher
+# ![alt text](https://github.com/BSG-75/RA3Bar-RA3Launcher/raw/master/ra3bar.bmp "RA3Bar Logo") RA3Bar-RA3QuickLauncher
 For more details about this project: https://www.gamereplays.org/community/index.php?showtopic=1013524
 
 Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
