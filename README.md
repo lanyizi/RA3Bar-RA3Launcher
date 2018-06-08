@@ -34,6 +34,6 @@ While this problem can be "fixed" in some rather simple way, such as y editing t
 It looks like I just need write a program which calls `CreateProcess()` to start game's main process, and this should be a really simple task!
 
 So I started this project by using only Win32 API (because I thought it would be enough), and eventually I discovered that... the things aren't that easy like what I thought...
-For example, actually I have to replicate game's Control Center with all GUI stuff, I have to parse replays, I have to parse CSF files and read localized strings from them... And I'm not very good at coding (you can confirm this by reading my code xD), so this project has nearly become a big pain, but fortunately I still completed it!
+And I'm not very good at coding (you can confirm this by reading my code :P), so this project has nearly become a big pain for me, but fortunately, I still completed it!
 
 [2]: Example link of Comrade News: http://files.ea.com/downloads/eagames/cc/tiberium/RedAlert3/RA3ComradeNews/RA3ComradeNews_english.html
