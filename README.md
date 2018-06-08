@@ -10,6 +10,8 @@ Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
 * Control Center's Game Browser is now equipped with a simple replay parser which can display some match information such as date, game duration, map, and player list. It can also fix corrupted replays damaged by game crash.
 * If you can't open (and watch) .RA3Replay files with RA3.exe, now you can set the replay file association in a rather easy way: right click on the replay file, and choose (this new) RA3.exe in the **Open With...** menu. Then you can watch replays by just double-clicking on the file.
 
+The replay parsing functions of this project is largerly based on [louisdx's cnc3reader][https://github.com/louisdx/cnc-replayreaders/].
+
 [1]: In case you don't know how to load Mods: you need go to Control Center → Game Browser → Mod. To install a Mod, put them in `My Documents\Red Alert 3\Mods`.
 
 ## How to build
@@ -35,5 +37,6 @@ It looks like I just need write a program which calls `CreateProcess()` to start
 
 So I started this project by using only Win32 API (because I thought it would be enough), and eventually I discovered that... the things aren't that easy like what I thought...
 And I'm not very good at coding (you can confirm this by reading my code :P), so this project has nearly become a big pain for me, but fortunately, I still completed it!
+
 
 [2]: Example link of Comrade News: http://files.ea.com/downloads/eagames/cc/tiberium/RedAlert3/RA3ComradeNews/RA3ComradeNews_english.html
