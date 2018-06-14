@@ -1,4 +1,4 @@
-# RA3Bar-RA3QuickLauncher
+# RA3Bar-RA3QuickLoader
 For more details about this project: https://www.gamereplays.org/community/index.php?showtopic=1013524
 
 Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
