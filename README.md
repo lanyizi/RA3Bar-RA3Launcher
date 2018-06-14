@@ -25,7 +25,7 @@ g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -sta
 ```
 
 
-I think Visual Studio should also be able to build with these files without any problems, but I haven't tried to build this project with VS yet.
+I think Visual Studio should also be able to build with these files without any problems, but I haven't tried it yet.
 
 ## About this program
 Recently a lot of people needs to wait for like 30 seconds when launching Red Alert 3.
