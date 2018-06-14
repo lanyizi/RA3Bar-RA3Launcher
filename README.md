@@ -5,7 +5,7 @@ Or also here if you can speak Chinese: https://tieba.baidu.com/p/5735228567
 
 ## Features
 * Start Red Alert 3 nearly instantly
-* You can now click Red Alert 3's splash screen to open RA3's Control Center. This could be pretty handy if you wish to play Mods[1] with current version C&C:Online Launcher.
+* You can now click Red Alert 3's splash screen to open RA3's Control Center. This could be pretty handy if you wish to play Mods[1] with current version of C&C:Online Launcher.
 * You can now add custom command-line arguments directly inside the Control Center. Again, this could be pretty handy if you want to add some command line arguments when using C&C:Online Launcher.
 * Control Center's Game Browser is now equipped with a simple replay parser which can display some match information such as date, game duration, map, and player list. It can also fix corrupted replays damaged by game crash.
 * If you can't open (and watch) .RA3Replay files with RA3.exe, now you can set the replay file association in a rather easy way: right click on the replay file, and choose (this new) RA3.exe in the **Open With...** menu. Then you can watch replays by just double-clicking on the file.
