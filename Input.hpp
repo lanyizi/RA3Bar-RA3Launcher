@@ -13,8 +13,19 @@
 namespace Input {
 	template<typename Iterator>
 	struct Range {
+		struct RangeForSupport {
+			constexpr Iterator begin() const noexcept { return rangeBegin; }
+			constexpr Iterator end() const noexcept { return rangeEnd; }
+			Iterator rangeBegin;
+			Iterator rangeEnd;
+		};
 		using Category = typename std::iterator_traits<Iterator>::iterator_category;
-		Range(const Iterator& current, const Iterator& end) : current{current}, end{end} { }
+		enum { isAtLeastForwardIterator = std::is_base_of_v<std::forward_iterator_tag, Category> };
+		constexpr Range(const Iterator& current, const Iterator& end) noexcept : current{current}, end{end} { }
+		constexpr RangeForSupport rangeForLoop() const noexcept {
+			static_assert(isAtLeastForwardIterator, "Using Range<InputIterator> with a range for loop would leave dangling iterators.");
+			return RangeForSupport{this->current, this->end};
+		}
 		Iterator current;
 		Iterator end;
 	};
@@ -41,7 +52,7 @@ namespace Input {
 
 	template<typename InputIterator, typename OutputIterator>
 	void copyFixed(Range<InputIterator>& range, OutputIterator outputBegin, typename std::iterator_traits<InputIterator>::difference_type count) {
-		if constexpr(std::is_base_of_v<std::forward_iterator_tag, typename Range<InputIterator>::Category>) {
+		if constexpr(range.isAtLeastForwardIterator) {
 			if(std::distance(range.current, range.end) < count) {
 				throw RangeException("ForwardIterator will reach end before copy finishes");
 			}
@@ -62,7 +73,7 @@ namespace Input {
 
 	template<typename InputIterator>
 	void ignore(Range<InputIterator>& range, std::size_t numberOfBytes) {
-		if constexpr(std::is_base_of_v<std::forward_iterator_tag, typename Range<InputIterator>::Category>) {
+		if constexpr(range.isAtLeastForwardIterator) {
 			auto distance = std::distance(range.current, range.end);
 			if((distance < 0) or (static_cast<std::size_t>(distance) < numberOfBytes)) {
 				throw RangeException("ForwardIterator will reach end before ignore finishes");

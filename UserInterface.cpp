@@ -22,7 +22,9 @@ using namespace Windows;
 using namespace MyCSF;
 
 enum ID  {
-	captionString = 1,
+	errorMessage = 1,
+
+	captionString,
 
 	splashScreen,
 	//buttons
@@ -94,6 +96,7 @@ enum ID  {
 
 const std::wstring& getText(const LanguageData& data, ID id) {
 	static auto labels = std::map<ID, std::wstring> {
+		{errorMessage, L"RA3BarLauncher:ErrorMessage"},
 		{captionString, L"Launcher:Caption"},
 		{splashScreen, L"RA3BarLauncher:ClickSplashScreen"},
 		{playGame, L"Launcher:Play"},
@@ -148,7 +151,7 @@ const std::wstring& getText(const LanguageData& data, ID id) {
 	};
 
 	auto loadMyCSF = [](HMODULE module, LPCWSTR resource, LPCWSTR type) {
-		auto data = loadResourceBinaryData<char>(module, resource, type);
+		auto data = loadBinaryDataResource<char>(module, resource, type);
 		return loadCSFStrings(std::begin(data), std::end(data));
 	};
 	static auto myEnglish = loadMyCSF(GetModuleHandle(nullptr), MAKEINTRESOURCEW(BUILTIN_ENGLISH), RT_RCDATA);
@@ -190,6 +193,16 @@ const std::wstring& getLanguageName(const LanguageData& data, const std::wstring
 	return string->second;
 }
 
+void displayErrorMessage(const std::exception& error, const LanguageData& languageData) {
+	auto message = getText(languageData, errorMessage);
+	message += L"\r\n";
+	message += toWide(error.what());
+	MessageBoxW(nullptr,
+	            message.c_str(),
+	            getText(languageData, captionString).c_str(),
+	            MB_ICONERROR|MB_OK);
+}
+
 void notifyCantUpdate(const LanguageData& languageData) {
 	MessageBoxW(nullptr,
 	            getText(languageData, useOriginalRA3ToUpdate).c_str(),
@@ -208,22 +221,23 @@ void notifyIsNotReplay(const LanguageData& languageData) {
 bool askUserIfFixReplay(const std::wstring& replayName, const LanguageData& languageData) {
 	auto text = getText(languageData, replayNeedsToBeFixedText) + L"\r\n"
 	            + getText(languageData, fixReplayWarning);
-	return IDYES == MessageBoxW(nullptr,
-	                            text.c_str(),
-	                            getText(languageData, replayCantBePlayed).c_str(),
-	                            MB_ICONWARNING|MB_YESNO);
+	auto answer = MessageBoxW(nullptr,
+	                          text.c_str(),
+	                          getText(languageData, replayCantBePlayed).c_str(),
+	                          MB_ICONWARNING|MB_YESNO);
+	return answer == IDYES;
 }
 
-void nofifyFixReplaySucceeded(const LanguageData& languageData) {
+void notifyFixReplaySucceeded(const LanguageData& languageData) {
 	MessageBoxW(nullptr,
 	            getText(languageData, fixReplaySucceeded).c_str(),
 	            getText(languageData, fixReplay).c_str(),
 	            MB_ICONINFORMATION|MB_OK);
 }
 
-void nofifyFixReplayFailed(const LanguageData& languageData, const std::wstring& error) {
+void notifyFixReplayFailed(const std::exception& error, const LanguageData& languageData) {
 	MessageBoxW(nullptr,
-	            (getText(languageData, fixReplayFailed) + L"\r\n" + error).c_str(),
+	            (getText(languageData, fixReplayFailed) + L"\r\n" + toWide(error.what())).c_str(),
 	            getText(languageData, fixReplay).c_str(),
 	            MB_ICONERROR|MB_OK);
 }
@@ -509,6 +523,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 
 	auto buttonBrushes = std::array<BrushHandle, 3> {};
 	auto buttonFont = getNormalFont();
+	constexpr auto buttonTextFormats = DT_CENTER|DT_SINGLELINE|DT_VCENTER;
 	auto commandLineFont = getNormalFont(commandLineHeight);
 
 	auto handlers = ModalDialogBox::HandlerTable{};
@@ -529,7 +544,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 			auto row = y * rectWidth(clientArea);
 			for(auto column = firstLineStart; column < firstLineStart + commandLineWidth; ++column) {
 				auto sp = (y - commandLineY) * rectWidth(clientArea) + (column - firstLineStart);
-				bitmapBits.buffer.at(sp) = colorMultiply(bitmapBits.buffer.at(row + column), 128);
+				bitmapBits.buffer.at(sp) = colorMultiply(bitmapBits.buffer.at(row + column), 150);
 			}
 		}
 		auto duplicate = createCompatibleBitmap(deviceContext, rectWidth(clientArea), rectHeight(clientArea));
@@ -585,7 +600,33 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		SendMessageW(commandLineWindow, WM_SETFONT, reinterpret_cast<WPARAM>(commandLineFont.get()), true);
 	};
 
-	handlers[WM_INITDIALOG] = [&languageData, &icon, setUpBrushes, initializeCommandLineWindow](HWND window, WPARAM, LPARAM) {
+	auto adjustButtonFont = [&languageData, &buttonFont](HWND window) {
+		auto getTextRect = [&buttonFont](HDC deviceContext, std::wstring_view text) {
+			auto textRect = RECT{0, 0, buttonWidth, buttonHeight};
+			auto previousFont = selectObject(deviceContext, buttonFont.get());
+			DrawTextW(deviceContext, text.data(), text.size(), &textRect, buttonTextFormats|DT_CALCRECT)
+			        >> checkWin32Result("DrawText", errorValue, 0);
+			return textRect;
+		};
+
+		buttonFont = getNormalFont();
+		for(auto id : allButtons) {
+			auto button = getControlByID(window, id);
+			InvalidateRect(button, nullptr, false) >> checkWin32Result("InvalidateRect", errorValue, false);
+
+			auto context = getDeviceContext(button);
+			const auto& text = getText(languageData, id);
+			auto textRect = getTextRect(context->context, text);
+			if(rectWidth(textRect) <= buttonWidth) {
+				continue;
+			}
+			auto realHeight = getRealFontHeight(context->context, buttonFont.get());
+			auto adjustedHeight = realHeight * buttonWidth / rectWidth(textRect);
+			buttonFont = getAdjustedNormalFont(context->context, adjustedHeight);
+		}
+	};
+
+	handlers[WM_INITDIALOG] = [&languageData, &icon, setUpBrushes, initializeCommandLineWindow, adjustButtonFont](HWND window, WPARAM, LPARAM) {
 		myBeginDialog(window, getText(languageData, captionString), icon.get(),
 		              GetDesktopWindow(), ICC_STANDARD_CLASSES, clientArea);
 
@@ -611,6 +652,8 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		createControl(window, about, WC_BUTTONW, {}, WS_VISIBLE, 0,
 		              clientArea.right - buttonWidth - buttonPadding, clientArea.top + buttonPadding,
 		              buttonWidth, buttonHeight).release();
+
+		adjustButtonFont(window);
 		return TRUE;
 	};
 
@@ -652,98 +695,75 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		EndDialog(window, 0) >> checkWin32Result("EndDialog", errorValue, false);
 	};
 
-	handlers[WM_COMMAND] = [&ra3Path, &languageData, &icon, &buttonFont, setUpBrushes, getCommandLines, endControlCenter](HWND window, WPARAM codeAndIdentifier, LPARAM childWindow) {
+	handlers[WM_COMMAND] = [&ra3Path, &languageData, &icon, setUpBrushes, adjustButtonFont, getCommandLines, endControlCenter](HWND window, WPARAM codeAndIdentifier, LPARAM childWindow) {
 		auto notificationCode = HIWORD(codeAndIdentifier);
 		auto identifier = LOWORD(codeAndIdentifier);
-		if(notificationCode == BN_CLICKED) {
-			switch(identifier) {
-				case playGame: {
-					endControlCenter(window, LaunchOptions{LaunchOptions::noFile, {}, getCommandLines(window)});
-					break;
-				}
-				case checkForUpdates: {
-					notifyCantUpdate(languageData);
-					break;
-				}
-				case setLanguage: {
-					languageData = getNewLanguage(window, ra3Path, icon.get(), languageData);
-					SetWindowTextW(window, getText(languageData, captionString).c_str()) >> checkWin32Result("SetWindowTextW", successValue, true);
-					setUpBrushes(getDeviceContext(window)->context);
-					buttonFont = getNormalFont();
-					InvalidateRect(window, nullptr, false) >> checkWin32Result("InvalidateRect", errorValue, false);
-					for(auto id : allButtons) {
-						InvalidateRect(getControlByID(window, id), nullptr, false) >> checkWin32Result("InvalidateRect", errorValue, false);
-					}
-					break;
-				}
-				case gameBrowser: {
-					auto launchOptions = runGameBrowser(window, ra3Path, icon.get(), languageData);
-					if(launchOptions.has_value()) {
-						launchOptions->extraCommandLine = getCommandLines(window);
-						endControlCenter(window, std::move(launchOptions));
-					}
-					break;
-				}
-				case readMe: {
-					try {
-						shellExecute(window, L"open", getRegistryString(getRa3RegistryKey(HKEY_LOCAL_MACHINE).get(), L"Readme"));
-					}
-					catch(...) { }
-					break;
-				}
-				case visitEAWebsite: {
-					shellExecute(window, L"open", getText(languageData, webSiteLink));
-					break;
-				}
-				case technicalSupport: {
-					shellExecute(window, L"open", getText(languageData, eaSupportURL));
-					break;
-				}
-				case deauthorize: {
-					MessageBoxW(window,
-					            getText(languageData, useOriginalRA3ToDeauthorize).c_str(),
-					            getText(languageData, useOriginalRA3Title).c_str(),
-					            MB_ICONINFORMATION|MB_OK);
-					break;
-				}
-				case about: {
-					aboutWindow(window, icon.get(), languageData);
-					break;
-				}
-				case quit: {
-					endControlCenter(window, std::nullopt);
-					break;
-				}
+		if(notificationCode != BN_CLICKED) {
+			return FALSE;
+		}
+		switch(identifier) {
+			case playGame: {
+				endControlCenter(window, LaunchOptions{LaunchOptions::noFile, {}, getCommandLines(window)});
+				break;
 			}
-			return TRUE;
+			case checkForUpdates: {
+				notifyCantUpdate(languageData);
+				break;
+			}
+			case setLanguage: {
+				languageData = getNewLanguage(window, ra3Path, icon.get(), languageData);
+				SetWindowTextW(window, getText(languageData, captionString).c_str()) >> checkWin32Result("SetWindowTextW", successValue, true);
+				setUpBrushes(getDeviceContext(window)->context);
+				adjustButtonFont(window);
+				InvalidateRect(window, nullptr, false) >> checkWin32Result("InvalidateRect", errorValue, false);
+				break;
+			}
+			case gameBrowser: {
+				auto launchOptions = runGameBrowser(window, ra3Path, icon.get(), languageData);
+				if(launchOptions.has_value()) {
+					launchOptions->extraCommandLine = getCommandLines(window);
+					endControlCenter(window, std::move(launchOptions));
+				}
+				break;
+			}
+			case readMe: {
+				try {
+					shellExecute(window, L"open", getRegistryString(getRa3RegistryKey(HKEY_LOCAL_MACHINE).get(), L"Readme"));
+				}
+				catch(...) { }
+				break;
+			}
+			case visitEAWebsite: {
+				shellExecute(window, L"open", getText(languageData, webSiteLink));
+				break;
+			}
+			case technicalSupport: {
+				shellExecute(window, L"open", getText(languageData, eaSupportURL));
+				break;
+			}
+			case deauthorize: {
+				MessageBoxW(window,
+				            getText(languageData, useOriginalRA3ToDeauthorize).c_str(),
+				            getText(languageData, useOriginalRA3Title).c_str(),
+				            MB_ICONINFORMATION|MB_OK);
+				break;
+			}
+			case about: {
+				aboutWindow(window, icon.get(), languageData);
+				break;
+			}
+			case quit: {
+				endControlCenter(window, std::nullopt);
+				break;
+			}
 		}
-		return FALSE;
+		return TRUE;
+
 	};
 
-	auto adjustButtonFont = [&buttonFont](HDC deviceContext, std::wstring_view text, UINT formats) {
-		auto getTextRect = [&buttonFont, deviceContext, text, formats] {
-			auto textRect = RECT{0, 0, buttonWidth, buttonHeight};
-			auto previousFont = selectObject(deviceContext, buttonFont.get());
-			DrawTextW(deviceContext, text.data(), text.size(), &textRect, formats|DT_CALCRECT)
-			        >> checkWin32Result("DrawText", errorValue, 0);
-			return textRect;
-		};
 
-		auto textRect = getTextRect();
-		if(rectWidth(textRect) <= buttonWidth) {
-			return false;
-		}
-		auto realHeight = getRealFontHeight(deviceContext, buttonFont.get());
-		auto adjustedHeight = realHeight * buttonWidth / rectWidth(textRect);
-		buttonFont = getAdjustedNormalFont(deviceContext, adjustedHeight);
-		if(rectWidth(getTextRect()) > buttonWidth) {
-			throw std::runtime_error("Can't adjust font");
-		}
 
-		return true;
-	};
-
-	handlers[WM_NOTIFY] = [&languageData, &buttonBrushes, &buttonFont, adjustButtonFont](HWND window, WPARAM, LPARAM dataHeaderAddress) {
+	handlers[WM_NOTIFY] = [&languageData, &buttonBrushes, &buttonFont](HWND window, WPARAM, LPARAM dataHeaderAddress) {
 		const auto& dataHeader = *reinterpret_cast<const NMHDR*>(dataHeaderAddress);
 		auto id = static_cast<ID>(dataHeader.idFrom);
 
@@ -762,23 +782,13 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		}
 
 		const auto& buttonText = getText(languageData, id);
-		constexpr auto buttonTextFormat = DT_CENTER|DT_SINGLELINE|DT_VCENTER;
-		if(adjustButtonFont(customDraw.hdc, buttonText, buttonTextFormat)) {
-			for(auto buttonID : allButtons) {
-				if(buttonID == id) {
-					continue;
-				}
-				InvalidateRect(getControlByID(window, buttonID), nullptr, FALSE)
-				        >> checkWin32Result("InvalidateRect", errorValue, false);
-			}
-		}
 
 		auto previousMode = setBackgroundMode(customDraw.hdc, TRANSPARENT);
 		auto previousColor = setTextColor(customDraw.hdc, RGB(255, 255, 255));
+
+		auto buttonState = SendMessageW(dataHeader.hwndFrom, BM_GETSTATE, 0, 0);
 		auto brush = HBRUSH{nullptr};
-		auto text = std::wstring{};
-		if(auto buttonState = SendMessageW(dataHeader.hwndFrom, BM_GETSTATE, 0, 0);
-		        buttonState bitand BST_PUSHED) {
+		if(buttonState bitand BST_PUSHED) {
 			brush = buttonBrushes[2].get();
 		}
 		else if(buttonState bitand BST_HOT) {
@@ -795,7 +805,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		}
 
 		auto previousFont = selectObject(customDraw.hdc, buttonFont.get());
-		DrawTextW(customDraw.hdc, buttonText.c_str(), buttonText.size(), &buttonRect, buttonTextFormat);
+		DrawTextW(customDraw.hdc, buttonText.c_str(), buttonText.size(), &buttonRect, buttonTextFormats);
 		return CDRF_SKIPDEFAULT;
 	};
 
@@ -1272,10 +1282,10 @@ std::optional<LaunchOptions> runGameBrowser(HWND controlCenter, const std::wstri
 		}
 		try {
 			fixReplayByFileName(launchOptions->fileToBeLoaded);
-			nofifyFixReplaySucceeded(languageData);
+			notifyFixReplaySucceeded(languageData);
 		}
-		catch(const std::exception& e) {
-			nofifyFixReplayFailed(languageData, toWide(e.what()));
+		catch(const std::exception& error) {
+			notifyFixReplayFailed(error, languageData);
 		}
 
 		initializeTab(dialogBox);
@@ -1369,32 +1379,64 @@ std::optional<LaunchOptions> runGameBrowser(HWND controlCenter, const std::wstri
 }
 
 void aboutWindow(HWND parent, HICON icon, const LanguageData& languageData) {
-	static constexpr auto clientArea = RECT{0, 0, 450, 240};
-	static constexpr auto logoRect = RECT{5, 10, 133, 138};
+
+	static constexpr auto clientArea = RECT{0, 0, 330, 420};
+	static constexpr auto logoRect = RECT{15, 310, 315, 410};
 	auto handlers = ModalDialogBox::HandlerTable{};
 	auto font = getNormalFont();
-	auto logo = loadImage<BitmapHandle>(GetModuleHandle(nullptr), RA3BAR_LOGO, {128, 128});
+	auto ra3barData = loadBinaryDataResource<DWORD>(GetModuleHandle(nullptr), MAKEINTRESOURCEW(RA3BAR_LOGO), RT_RCDATA);
+	auto ra3barBitmap = BitmapHandle{};
+	auto maskBitmap = BitmapHandle{};
+	auto initializeLogo = [&ra3barData, &ra3barBitmap, &maskBitmap](HDC context, int width, int height) {
+		ra3barBitmap = createCompatibleBitmap(context, width, height);
+		{
+			auto imageBits = getBitmapBits(context, ra3barBitmap.get(), {{width, -height}});
+			auto i = std::size_t{0};
+			for(auto color : ra3barData) {
+				auto alpha = (color >> 24) bitand 0xFF;
+				auto red = (color >> 16) bitand 0xFF;
+				auto green = (color >> 8) bitand 0xFF;
+				auto blue = (color >> 0) bitand 0xFF;
+				imageBits.buffer.at(i) = RGB(red, green, blue) * (alpha != 0);
+				++i;
+			}
+			setBitmapBits(context, ra3barBitmap.get(), imageBits);
+		}
 
-	handlers[WM_INITDIALOG] = [parent, icon, &languageData, &font](HWND dialogBox, WPARAM, LPARAM) {
+		maskBitmap = createCompatibleBitmap(context, width, height);
+		{
+			constexpr auto white = DWORD{0x00FFFFFF};
+			auto maskBits = getBitmapBits(context, maskBitmap.get(), {{width, -height}});
+			auto i = std::size_t{0};
+			for(auto color : ra3barData) {
+				maskBits.buffer.at(i) = white * ((color >> 24) == 0);
+				++i;
+			}
+			setBitmapBits(context, maskBitmap.get(), maskBits);
+		}
+	};
+
+	handlers[WM_INITDIALOG] = [parent, icon, &languageData, &font, initializeLogo](HWND dialogBox, WPARAM, LPARAM) {
 		myBeginDialog(dialogBox, getText(languageData, about), icon,
 		              parent, ICC_STANDARD_CLASSES|ICC_LINK_CLASS, clientArea);
-		createControl(dialogBox, aboutText, WC_LINK,
-		              getText(languageData, aboutText).c_str(),
-		              WS_VISIBLE, 0, 140, 10, 300, 220).release();
-		createControl(dialogBox, resourceAuthors, WC_STATICW,
-		              getText(languageData, resourceAuthors).c_str(),
-		              WS_VISIBLE|SS_CENTER, 0, 5, 145, 128, 85).release();
-		for(auto id : {aboutText, resourceAuthors}) {
-			SendMessageW(getControlByID(dialogBox, id), WM_SETFONT, reinterpret_cast<WPARAM>(font.get()), true);
-		}
+		auto text = getText(languageData, aboutText) + L"\r\n\r\n" + getText(languageData, resourceAuthors);
+		auto control = createControl(dialogBox, aboutText, WC_LINK, text.c_str(), WS_VISIBLE, 0, 10, 10, 310, 300).release();
+		SendMessageW(control, WM_SETFONT, reinterpret_cast<WPARAM>(font.get()), true);
+		initializeLogo(getDeviceContext(dialogBox)->context, 300, 100);
 		return TRUE;
 	};
-	handlers[WM_PAINT] = [&logo](HWND dialogBox, WPARAM, LPARAM) {
+	handlers[WM_PAINT] = [&ra3barBitmap, &maskBitmap](HWND dialogBox, WPARAM, LPARAM) {
 		auto paint = beginPaint(dialogBox);
-		auto compatibleContext = createCompatibleDeviceContext(paint->context);
-		auto previous = selectObject(compatibleContext.get(), logo.get());
+
+		auto mask = createCompatibleDeviceContext(paint->context);
+		auto previousMaskBitmap = selectObject(mask.get(), maskBitmap.get());
 		auto [x, y, ex, ey] = logoRect;
-		BitBlt(paint->context, x, y, ex - x, ey - y, compatibleContext.get(), 0, 0, SRCCOPY)
+		BitBlt(paint->context, x, y, ex - x, ey - y, mask.get(), 0, 0, SRCAND)
+		        >> checkWin32Result("BitBlt", errorValue, false);
+
+		auto logo = createCompatibleDeviceContext(paint->context);
+		auto previousLogoBitmap = selectObject(logo.get(), ra3barBitmap.get());
+		BitBlt(paint->context, x, y, ex - x, ey - y, logo.get(), 0, 0, SRCPAINT)
 		        >> checkWin32Result("BitBlt", errorValue, false);
 		return TRUE;
 	};

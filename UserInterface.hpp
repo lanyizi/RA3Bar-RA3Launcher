@@ -23,11 +23,12 @@ struct LaunchOptions {
 	std::wstring extraCommandLine;
 };
 
+void displayErrorMessage(const std::exception& error, const LanguageData& languageData);
 void notifyCantUpdate(const LanguageData& languageData);
 void notifyIsNotReplay(const LanguageData& languageData);
 bool askUserIfFixReplay(const std::wstring& replayName, const LanguageData& languageData);
-void nofifyFixReplaySucceeded(const LanguageData& languageData);
-void nofifyFixReplayFailed(const LanguageData& languageData, const std::wstring& error);
+void notifyFixReplaySucceeded(const LanguageData& languageData);
+void notifyFixReplayFailed(const std::exception& errorMessage, const LanguageData& languageData);
 void notifyNoCommentatorAvailable(const LanguageData& languageData);
 void notifyGameVersionNotFound(const std::wstring& version, const LanguageData& languageData);
 void notifyReplayModNotFound(const LanguageData& languageData);

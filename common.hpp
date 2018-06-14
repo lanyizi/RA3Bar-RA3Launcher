@@ -174,15 +174,15 @@ inline LanguageData loadPreferredLanguageData(const std::wstring& ra3Path) {
 	try {
 		language = Windows::getRegistryString(getRa3RegistryKey(HKEY_CURRENT_USER).get(), L"Language");
 	}
-	catch(...) { }
+	catch(...) { } //If we are unable to retrieve user language from registry, then set preferred language is English
 	auto allLanguages = getAllLanguages(ra3Path);
 	if(allLanguages.empty()) {
 		throw std::runtime_error("Please install at least one language pack.");
 	}
 	if(auto position = std::find(std::begin(allLanguages), std::end(allLanguages), language);
 	        position != std::end(allLanguages)) {
-		return loadLanguageData(ra3Path, *position);
+		return loadLanguageData(ra3Path, *position); //if preferredn language pack exits, then return it
 	}
-	return loadLanguageData(ra3Path, allLanguages.front());
+	return loadLanguageData(ra3Path, allLanguages.front()); //otherwide return what is available
 }
 

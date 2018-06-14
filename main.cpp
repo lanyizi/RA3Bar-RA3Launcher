@@ -9,8 +9,8 @@
 
 std::wstring rebuildArgument(std::wstring_view argument) {
 	auto result = std::wstring{};
-	bool needQuotes = false;
-	//[n(0 or more) slash][quote] -> [n * 2 slash][slash][quote]
+	auto needQuotes = false;
+	//[n (0 or more) slashes][quote] -> [n * 2 slashes][slash][quote]
 	for(auto i = std::size_t{0}; i < argument.size(); ++i) {
 		if(argument[i] == L'\\') {
 			auto afterSlash = argument.find_first_not_of(L'\\', i);
@@ -126,7 +126,32 @@ std::optional<std::wstring> getItemFromSkudef(const std::wstring& skudefPath, st
 	return skudefContent.substr(itemBegin, itemEnd - itemBegin);
 }
 
+HWND findRA3Window(HANDLE processHandle) {
+	auto processIDAndWindow = std::pair{GetProcessId(processHandle), HWND{}};
+	struct EnumWindowsCallback {
+		static BOOL CALLBACK function(HWND window, LPARAM dataAddress) {
+			auto processID = DWORD{};
+			GetWindowThreadProcessId(window, &processID);
+			auto& data = *reinterpret_cast<decltype(processIDAndWindow)*>(dataAddress);
+			if(data.first != processID) {
+				return TRUE;
+			}
+			if((GetWindow(window, GW_OWNER) != nullptr) or (not IsWindowVisible(window))) {
+				return TRUE;
+			}
+			data.second = window;
+			return FALSE;
+		}
+	};
+	EnumWindows(&EnumWindowsCallback::function, reinterpret_cast<LPARAM>(&processIDAndWindow));
+	return processIDAndWindow.second;
+}
+
 int main() {
+
+	//default language data,
+	//gettext will use default embbed ra3bar - english language pack, if available
+	auto languageData = LanguageData{};
 
 	try {
 		using namespace Windows;
@@ -147,7 +172,7 @@ int main() {
 			ra3Path.back() == L'\\' ? static_cast<void>(NULL) : ra3Path.push_back(L'\\');
 		}
 
-		auto languageData = loadPreferredLanguageData(ra3Path);
+		languageData = loadPreferredLanguageData(ra3Path);
 
 		auto runControlCenterWhenNeeded = [&ra3Path, &languageData](bool canRun, const std::wstring& userOptions, HBITMAP customBackground) {
 			if(not canRun) {
@@ -195,12 +220,21 @@ int main() {
 			auto getAndRemoveArgument = [&arguments](auto predicate, ExtractMode mode) {
 				return extractArgument(arguments, predicate, mode, ActionAfterExtract::removeItem);
 			};
+			auto getArgument = [checkWithString, &arguments](std::wstring_view name, ExtractMode mode) {
+				return extractArgument(arguments, checkWithString(name), mode, ActionAfterExtract::keepItem);
+			};
 
-			auto db = getAndRemoveArgument(checkWithString(L"-RA3BarLauncherDebug"), ExtractMode::extractName);
 			auto ev = getAndRemoveArgument(checkWithString(L"-runver"), ExtractMode::extractValue);
 			auto em = getAndRemoveArgument(checkWithString(L"-modConfig"), ExtractMode::extractValue);
 			auto er = getAndRemoveArgument(checkWithString(L"-replayGame"), ExtractMode::extractValue);
-			if(not er.has_value() and not db.has_value()) {
+			auto ex = getAndRemoveArgument(checkWithString(L"-x"), ExtractMode::extractValue);
+			auto ey = getAndRemoveArgument(checkWithString(L"-y"), ExtractMode::extractValue);
+			auto et = getAndRemoveArgument(checkWithString(L"-allowAlwaysOnTop"), ExtractMode::extractName);
+			auto windowed    = getArgument(L"-win", ExtractMode::extractName);
+			auto fullscreen  = getArgument(L"-fullscreen", ExtractMode::extractName);
+			auto resolutionX = getArgument(L"-xres", ExtractMode::extractValue);
+			auto resolutionY = getArgument(L"-yres", ExtractMode::extractValue);
+			if(not er.has_value()) {
 				er = getAndRemoveArgument(checkWithString(L"-file"), ExtractMode::extractValue);
 			}
 			if(not er.has_value()) {
@@ -267,22 +301,21 @@ int main() {
 					em = replayMods->front();
 				}
 
+				auto placeholder = std::optional<std::wstring> {std::nullopt};
 				if(not replayDetails.finalTimeCode.has_value()) {
-					if(askUserIfFixReplay(er.value(), languageData)) {
+					std::swap(placeholder, er);
+					if(askUserIfFixReplay(placeholder.value(), languageData)) {
 						try {
-							fixReplayByFileName(er.value());
+							fixReplayByFileName(placeholder.value());
+							std::swap(er, placeholder);
 						}
-						catch(const std::exception& e) {
-							nofifyFixReplayFailed(languageData, toWide(e.what()));
-							er.reset();
+						catch(const std::exception& error) {
+							notifyFixReplayFailed(error, languageData);
 						}
-					}
-					else {
-						er.reset();
 					}
 				}
-				if(er.has_value() and (replayDetails.hasCommentator == false)) {
-					er.reset();
+				if((er.has_value()) and (replayDetails.hasCommentator == false)) {
+					std::swap(placeholder, er);
 					notifyNoCommentatorAvailable(languageData);
 				}
 			}
@@ -341,7 +374,7 @@ int main() {
 				modArgument = L" -modConfig " + rebuildArgument(em.value());
 			}
 			if(er.has_value()) {
-				replayArgument = L" -replayGame \"" + rebuildArgument(er.value());
+				replayArgument = L" -replayGame " + rebuildArgument(er.value());
 			}
 
 			auto otherArguments = std::wstring{};
@@ -358,8 +391,55 @@ int main() {
 			}
 
 			auto finalArguments = ra3Path + gameExe + otherArguments + modArgument + replayArgument + configArgument;
+			auto game = createProcess(finalArguments, ra3Path.c_str());
+			if(windowed.has_value()) {
+				constexpr auto interval = 499;
+				while(WaitForSingleObject(game.get(), interval) == WAIT_TIMEOUT) {
+					if(WaitForInputIdle(game.get(), 1) != 0) {
+						continue;
+					}
+					auto gameWindow = findRA3Window(game.get());
+					if(gameWindow == nullptr) {
+						continue;
+					}
+					auto rect = getWindowRect(gameWindow);
 
-			auto game = createProcess(finalArguments, ra3Path.c_str(), 0);
+					if(fullscreen.has_value()) {
+						auto desktop = getWindowRect(GetDesktopWindow());
+						if(resolutionX.has_value()) {
+							try {
+								rect.left = (rectWidth(desktop) - std::stoi(resolutionX.value())) / 2;
+							}
+							catch(...) { }
+						}
+						if(resolutionY.has_value()) {
+							try {
+								rect.top = (rectHeight(desktop) - std::stoi(resolutionY.value())) / 2;
+							}
+							catch(...) { }
+						}
+					}
+
+					if(ex.has_value()) {
+						try {
+							rect.left = std::stoi(ex.value());
+						}
+						catch(...) { }
+					}
+					if(ey.has_value()) {
+						try {
+							rect.top = std::stoi(ey.value());
+						}
+						catch(...) { }
+					}
+
+					auto zOrderFlag = et.has_value() ? SWP_NOZORDER : 0;
+					SetWindowPos(gameWindow, HWND_NOTOPMOST, rect.left, rect.top, 0, 0, zOrderFlag|SWP_ASYNCWINDOWPOS|SWP_NOSIZE);
+					break;
+				}
+			}
+
+
 			WaitForSingleObject(game.get(), INFINITE) >> checkWin32Result("WaitForSingleOnject", errorValue, WAIT_FAILED);
 			auto exitCode = DWORD{0};
 			GetExitCodeProcess(game.get(), &exitCode) >> checkWin32Result("GetExitCodeProcess", errorValue, false);
@@ -368,8 +448,9 @@ int main() {
 			}
 		}
 	}
-	catch(std::exception& e) {
-		MessageBoxW(nullptr, Windows::toWide(e.what()).c_str(), nullptr, MB_TOPMOST|MB_ICONERROR);
+	catch(std::exception& exception) {
+		displayErrorMessage(exception, languageData);
+		return 1;
 	}
 	return 0;
 }

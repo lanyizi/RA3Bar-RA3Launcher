@@ -237,12 +237,14 @@ namespace Windows {
 		static INT_PTR CALLBACK dialogCallbacks(HWND windowHandle, UINT messageID, WPARAM wParam, LPARAM lParam) noexcept {
 			if(messageID == WM_INITDIALOG) {
 				SetLastError(ERROR_SUCCESS);
+				//If messageID is WM_INITDIALOG, then set long ptr
 				SetWindowLongPtrW(windowHandle, DWLP_USER, lParam);
 				auto lastError = GetLastError();
 				try {
 					lastError >> checkWin32Result("SetWindowLongPtrW", successValue, DWORD{ERROR_SUCCESS});
 				}
 				catch(...) {
+					//If there errors occurred when seeting DWLP_USER...
 					reinterpret_cast<ModalDialogBox*>(lParam)->exceptionLocation = std::current_exception();
 					EndDialog(windowHandle, -1);
 				}
@@ -250,12 +252,14 @@ namespace Windows {
 
 			auto dataAddress = reinterpret_cast<ModalDialogBox*>(GetWindowLongPtrW(windowHandle, DWLP_USER));
 			if(dataAddress == nullptr) {
+				//If there is no dwlp_user, then return
 				return FALSE;
 			}
 
 			auto& data = *dataAddress;
 
 			if((data.callbacksReference.get().count(messageID) == 0) or (data.exceptionLocation != nullptr)) {
+				//If there is no callbacks, then return
 				return FALSE;
 			}
 
@@ -265,7 +269,7 @@ namespace Windows {
 			catch(...) {
 				data.exceptionLocation = std::current_exception();
 				EndDialog(windowHandle, -1);
-				return TRUE;
+				return FALSE;
 			}
 		}
 
@@ -443,6 +447,7 @@ namespace Windows {
 			explicit TaggedHandle(Handle handle) noexcept : handle { handle } { }
 			TaggedHandle(TaggedHandle&& other) noexcept : handle { std::move(other.handle) } { }
 			template<typename... Args> TaggedHandle(Args&&... args) noexcept : handle { std::forward<Args>(args)... } { }
+			TaggedHandle& operator=(TaggedHandle&& other) noexcept { this->handle = std::move(other.handle); return *this; };
 			Handle get() const noexcept { return this->handle.get(); }
 		private:
 			std::unique_ptr<Data, Deleter> handle;
@@ -548,19 +553,20 @@ namespace Windows {
 	}
 
 	template<typename ValueType>
-	std::vector<ValueType> loadResourceBinaryData(HMODULE module, LPCWSTR resource, LPCWSTR type) {
+	std::vector<ValueType> loadBinaryDataResource(HMODULE module, LPCWSTR resource, LPCWSTR type) {
 		auto resourceInformation = FindResourceW(module, resource, type)
 		                           >> checkWin32Result("FindResourceW", errorValue, nullptr);
 		auto resourceHandle = LoadResource(module, resourceInformation)
 		                      >> checkWin32Result("LoadResource", errorValue, nullptr);
 		auto data = static_cast<const ValueType*>(LockResource(resourceHandle))
 		            >> checkWin32Result("LockResource", errorValue, nullptr);
-		auto size = SizeofResource(module, resourceInformation)
+		auto bytes = SizeofResource(module, resourceInformation)
 		            >> checkWin32Result("SizeofResource", errorValue, 0);
 
 		auto buffer = std::vector<ValueType> {};
-		buffer.resize(size);
-		std::copy_n(data, size, buffer.begin());
+		auto count = bytes / sizeof(ValueType);
+		buffer.resize(count);
+		std::copy_n(data, count, std::begin(buffer));
 		return buffer;
 	}
 
