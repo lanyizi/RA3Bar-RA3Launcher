@@ -10,6 +10,9 @@
 #include <functional>
 #include <exception>
 #include <stdexcept>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <Windows.h>
 #include <Shlwapi.h>
 
@@ -691,7 +694,7 @@ namespace Windows {
 		CreateProcessW(nullptr, commandLine.data(), processAttributes, threadAttribtues,
 		               inheritHandles, creationFlags, environments, currentDirectory, startUpInfo, &processInformation)
 		        >> checkWin32Result("CreateProcessW", errorValue, false);
-		Handle{processInformation.hThread};
+		void(Handle{processInformation.hThread});
 		return Handle{processInformation.hProcess};
 	}
 

@@ -10,11 +10,10 @@
 #include <optional>
 #include <cstdio>
 #include <locale>
-#include <Windows.h>
+#include "WindowsWrapper.hpp"
 #include <CommCtrl.h>
 #include <ShellApi.h>
 #include "UserInterface.hpp"
-#include "WindowsWrapper.hpp"
 #include "ReplaysAndMods.hpp"
 #include "resource.h"
 
@@ -432,7 +431,7 @@ SplashScreenResult displaySplashScreen(const std::wstring& ra3Path, const Langua
 		backgroundBrushWithText = createPatternBrush(background.get());
 	};
 
-	handlers[WM_INITDIALOG] = [&languageData, &icon, &lastTickCount, initializeBrushes](HWND window, WPARAM, LPARAM) {
+	handlers[WM_INITDIALOG] = [=, &languageData, &icon, &lastTickCount, &initializeBrushes](HWND window, WPARAM, LPARAM) {
 		myBeginDialog(window, getText(languageData, captionString), icon.get(),
 		              GetDesktopWindow(), ICC_STANDARD_CLASSES, splashRect);
 		initializeBrushes(getDeviceContext(window)->context);
@@ -441,7 +440,7 @@ SplashScreenResult displaySplashScreen(const std::wstring& ra3Path, const Langua
 		return TRUE;
 	};
 
-	handlers[WM_TIMER] = [&lastTickCount, &edge](HWND window, WPARAM timerID, LPARAM) {
+	handlers[WM_TIMER] = [=, &lastTickCount, &edge](HWND window, WPARAM timerID, LPARAM) {
 		if(timerID == splashScreen) {
 			auto oldTickCount = lastTickCount;
 			lastTickCount = GetTickCount();
@@ -461,7 +460,7 @@ SplashScreenResult displaySplashScreen(const std::wstring& ra3Path, const Langua
 		return TRUE;
 	};
 
-	auto drawer = [&backgroundBrush, &backgroundBrushWithText, &edge](HDC context, const RECT& dirtyRect) {
+	auto drawer = [=, &backgroundBrush, &backgroundBrushWithText, &edge](HDC context, const RECT& dirtyRect) {
 		auto textRect = dirtyRect;
 		textRect.left = std::clamp(edge, dirtyRect.left, dirtyRect.right);
 		textRect.right = std::clamp(edge - virtualWidth, dirtyRect.left, dirtyRect.right);
@@ -510,7 +509,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 	constexpr auto buttonPadding = 12;
 
 	static constexpr auto clientArea = RECT{0, 0, 800, 600};
-	static constexpr auto allButtons = {
+	static const auto allButtons = {
 		playGame, checkForUpdates, setLanguage,	gameBrowser, readMe,
 		visitEAWebsite, technicalSupport, deauthorize, quit, about,
 	};
@@ -518,8 +517,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 	auto icon = tryWith([&ra3Path] { return loadImage<IconHandle>(ra3Path + L"ra3.ico"); },
 	                    [] { return loadImage<IconHandle>(GetModuleHandle(nullptr), DEFAULT_ICON); });
 
-	auto backgroundBrushes = std::array<BrushHandle, 2> {};
-	const auto& [mainBackground, commandLineBackground] = backgroundBrushes;
+	BrushHandle mainBackground, commandLineBackground;
 
 	auto buttonBrushes = std::array<BrushHandle, 3> {};
 	auto buttonFont = getNormalFont();
@@ -529,7 +527,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 	auto handlers = ModalDialogBox::HandlerTable{};
 	auto returnValue = std::optional<LaunchOptions> {};
 
-	auto setUpBrushes = [&ra3Path, &languageData, customBackground, &backgroundBrushes, &buttonBrushes](HDC deviceContext) {
+	auto setUpBrushes = [=, &ra3Path, &languageData, &buttonBrushes, &mainBackground, &commandLineBackground](HDC deviceContext) {
 		using std::bind;
 		using std::ref;
 		auto backgroundLoader = bind(loadImageFromLauncherPath, ref(ra3Path), std::placeholders::_1, ref(clientArea));
@@ -537,7 +535,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		                          bind(backgroundLoader, L"cnc.bmp"),
 		                          createCompatibleBitmap(deviceContext, rectWidth(clientArea), rectHeight(clientArea)));
 		auto rawBackground = customBackground ? customBackground : background.get();
-		backgroundBrushes[0] = createPatternBrush(rawBackground);
+		mainBackground = createPatternBrush(rawBackground);
 
 		auto bitmapBits = getBitmapBits(deviceContext, rawBackground, {{rectWidth(clientArea), -rectHeight(clientArea)}});
 		for(auto y = commandLineY; y < commandLineY + commandLineHeight; ++y) {
@@ -549,7 +547,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		}
 		auto duplicate = createCompatibleBitmap(deviceContext, rectWidth(clientArea), rectHeight(clientArea));
 		setBitmapBits(deviceContext, duplicate.get(), bitmapBits);
-		backgroundBrushes[1] = createPatternBrush(duplicate.get());
+		commandLineBackground = createPatternBrush(duplicate.get());
 
 		auto maxDistance = 10;
 		auto greyButton = std::vector<std::uint8_t> {};
@@ -565,7 +563,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 			}
 		}
 
-		auto getButtonBrush = [deviceContext, &greyButton](DWORD backgroundColor, DWORD borderColor) {
+		auto getButtonBrush = [=, &greyButton](DWORD backgroundColor, DWORD borderColor) {
 			auto buttonBitmap = createCompatibleBitmap(deviceContext, buttonWidth, buttonHeight);
 			auto bitmapBits = getBitmapBits(deviceContext, buttonBitmap.get());
 			for(auto i = std::size_t{0}; i < bitmapBits.buffer.size(); ++i) {
@@ -592,7 +590,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		buttonBrushes[2] = getButtonBrush(RGB(0, 157, 230), RGB(0, 118, 230));
 	};
 
-	auto initializeCommandLineWindow = [&userCommandLine, &commandLineFont](HWND window) {
+	auto initializeCommandLineWindow = [=, &userCommandLine, &commandLineFont](HWND window) {
 		auto commandLineWindow = createControl(window, commandLine, WC_EDITW, userCommandLine.c_str(),
 		                                       WS_VISIBLE|WS_BORDER|ES_AUTOHSCROLL, WS_EX_TRANSPARENT,
 		                                       firstLineStart, commandLineY, commandLineWidth, commandLineHeight).release();
@@ -600,8 +598,8 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		SendMessageW(commandLineWindow, WM_SETFONT, reinterpret_cast<WPARAM>(commandLineFont.get()), true);
 	};
 
-	auto adjustButtonFont = [&languageData, &buttonFont](HWND window) {
-		auto getTextRect = [&buttonFont](HDC deviceContext, std::wstring_view text) {
+	auto adjustButtonFont = [=, &languageData, &buttonFont](HWND window) {
+		auto getTextRect = [=, &buttonFont](HDC deviceContext, std::wstring_view text) {
 			auto textRect = RECT{0, 0, buttonWidth, buttonHeight};
 			auto previousFont = selectObject(deviceContext, buttonFont.get());
 			DrawTextW(deviceContext, text.data(), text.size(), &textRect, buttonTextFormats|DT_CALCRECT)
@@ -626,7 +624,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		}
 	};
 
-	handlers[WM_INITDIALOG] = [&languageData, &icon, setUpBrushes, initializeCommandLineWindow, adjustButtonFont](HWND window, WPARAM, LPARAM) {
+	handlers[WM_INITDIALOG] = [=, &languageData, &icon](HWND window, WPARAM, LPARAM) {
 		myBeginDialog(window, getText(languageData, captionString), icon.get(),
 		              GetDesktopWindow(), ICC_STANDARD_CLASSES, clientArea);
 
@@ -635,7 +633,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		initializeCommandLineWindow(window);
 
 		auto currentX = 0;
-		auto nextX = [&currentX] { return currentX += buttonWidth + buttonPadding; };
+		auto nextX = [=, &currentX] { return currentX += buttonWidth + buttonPadding; };
 
 		currentX = firstLineStart - (buttonWidth + buttonPadding);
 		for(auto id : {playGame, checkForUpdates, setLanguage, gameBrowser, readMe}) {
@@ -657,7 +655,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		return TRUE;
 	};
 
-	handlers[WM_CTLCOLOREDIT] = [&commandLineBackground](HWND window, WPARAM hdcAddress, LPARAM childAddress) {
+	handlers[WM_CTLCOLOREDIT] = [&commandLineBackground](HWND window, WPARAM hdcAddress, LPARAM childAddress) -> INT_PTR {
 		auto childWindow = reinterpret_cast<HWND>(childAddress);
 		if(getControlID(childWindow) != commandLine) {
 			return FALSE;
@@ -669,7 +667,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 	};
 
 
-	handlers[WM_PAINT] = [&languageData, &mainBackground, &commandLineFont](HWND window, WPARAM, LPARAM) {
+	handlers[WM_PAINT] = [=, &languageData, &mainBackground, &commandLineFont](HWND window, WPARAM, LPARAM) {
 		auto paint = beginPaint(window);
 		auto previousMode = setBackgroundMode(paint->context, TRANSPARENT);
 		auto previousTextColor = setTextColor(paint->context, RGB(255, 255, 255));
@@ -763,7 +761,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 
 
 
-	handlers[WM_NOTIFY] = [&languageData, &buttonBrushes, &buttonFont](HWND window, WPARAM, LPARAM dataHeaderAddress) {
+	handlers[WM_NOTIFY] = [=, &languageData, &buttonBrushes, &buttonFont](HWND window, WPARAM, LPARAM dataHeaderAddress) {
 		const auto& dataHeader = *reinterpret_cast<const NMHDR*>(dataHeaderAddress);
 		auto id = static_cast<ID>(dataHeader.idFrom);
 
@@ -856,7 +854,7 @@ LanguageData getNewLanguage(HWND controlCenter, const std::wstring& ra3Path, HIC
 
 	auto handlers = ModalDialogBox::HandlerTable{};
 
-	handlers[WM_INITDIALOG] = [controlCenter, icon, &languageData, &font, &languages](HWND dialogBox, WPARAM wParam, LPARAM lParam) {
+	handlers[WM_INITDIALOG] = [=, &languageData, &font, &languages](HWND dialogBox, WPARAM wParam, LPARAM lParam) {
 		myBeginDialog(dialogBox, getText(languageData, setLanguage), icon,
 		              controlCenter, ICC_STANDARD_CLASSES, clientArea);
 
@@ -1051,13 +1049,13 @@ struct ReplaysAndModsData {
 
 std::optional<LaunchOptions> runGameBrowser(HWND controlCenter, const std::wstring& ra3Path, HICON icon, const LanguageData& languageData) {
 	using std::pair;
-	static constexpr auto tabs = {replays, mods};
-	static constexpr auto replaySubWindows = {replayList, replayDescription, fixReplay, replayFolder};
-	static constexpr auto modSubWindows = {modList, modFolder};
-	static constexpr auto tabSubWindows = {pair{replays, replaySubWindows}, pair{mods, modSubWindows}};
-	static constexpr auto replayListColumns = {pair{replayListReplayName, 0.52}, pair{replayListModName, 0.14}, pair{replayListGameVersion, 0.11}, pair{replayListDate, 0.23}};
-	static constexpr auto modListColumns = {pair{modListModName, 0.8}, pair{modListModVersion, 0.2}};
-	static constexpr auto bottomButtons = {gameBrowserLaunchGame, gameBrowserCancel};
+	static const auto tabs = {replays, mods};
+	static const auto replaySubWindows = {replayList, replayDescription, fixReplay, replayFolder};
+	static const auto modSubWindows = {modList, modFolder};
+	static const auto tabSubWindows = {pair{replays, replaySubWindows}, pair{mods, modSubWindows}};
+	static const auto replayListColumns = {pair{replayListReplayName, 0.52}, pair{replayListModName, 0.14}, pair{replayListGameVersion, 0.11}, pair{replayListDate, 0.23}};
+	static const auto modListColumns = {pair{modListModName, 0.8}, pair{modListModVersion, 0.2}};
+	static const auto bottomButtons = { gameBrowserLaunchGame, gameBrowserCancel };
 
 	constexpr auto buttonWidth = 110;
 	constexpr auto buttonHeight = 30;
@@ -1076,7 +1074,7 @@ std::optional<LaunchOptions> runGameBrowser(HWND controlCenter, const std::wstri
 	auto font = getNormalFont();
 	auto handlers = ModalDialogBox::HandlerTable{};
 
-	handlers[WM_INITDIALOG] = [controlCenter, icon, &languageData, &font](HWND dialogBox, WPARAM wParam, LPARAM lParam) {
+	handlers[WM_INITDIALOG] = [=, &languageData, &font](HWND dialogBox, WPARAM wParam, LPARAM lParam) {
 		myBeginDialog(dialogBox, getText(languageData, gameBrowser), icon, controlCenter,
 		              ICC_STANDARD_CLASSES | ICC_TAB_CLASSES | ICC_LISTVIEW_CLASSES, clientArea);
 

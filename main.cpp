@@ -1,4 +1,3 @@
-#include <windows.h>
 #include <cstring>
 #include <vector>
 #include <string>
@@ -453,6 +452,10 @@ int main() {
 		return 1;
 	}
 	return 0;
+}
+
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
+	return main();
 }
 
 
