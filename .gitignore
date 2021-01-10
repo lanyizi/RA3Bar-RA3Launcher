@@ -361,3 +361,11 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
+# Other files for mingw toolchain
+*.exe
+*.o
+resource.res
+
+# Editor
+/.vscode
+

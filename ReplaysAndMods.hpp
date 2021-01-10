@@ -175,9 +175,9 @@ namespace ReplaysAndMods {
 		constexpr auto modInfoSize = std::size_t{22};
 		auto modInfo = std::string{modInfoSize, {}, std::string::allocator_type{}};
 		copyFixed(replay, modInfo.begin(), modInfo.size());
-		auto modVersion = modInfo.substr(modInfo.find_last_of(L'\0', modInfo.find_last_not_of(L'\0')) + 1);
-		modInfo.resize(std::min(modInfo.size(), modInfo.find(L'\0')));
-		modVersion.resize(std::min(modVersion.size(), modVersion.find(L'\0')));
+		auto modVersion = modInfo.substr(modInfo.find_last_of('\0', modInfo.find_last_not_of('\0')) + 1);
+		modInfo.resize(std::min(modInfo.size(), modInfo.find('\0')));
+		modVersion.resize(std::min(modVersion.size(), modVersion.find('\0')));
 
 		auto timeStamp = copyBytes<std::uint32_t>(replay);
 

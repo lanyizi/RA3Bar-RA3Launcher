@@ -694,7 +694,7 @@ namespace Windows {
 		CreateProcessW(nullptr, commandLine.data(), processAttributes, threadAttribtues,
 		               inheritHandles, creationFlags, environments, currentDirectory, startUpInfo, &processInformation)
 		        >> checkWin32Result("CreateProcessW", errorValue, false);
-		void(Handle{processInformation.hThread});
+		CloseHandle(processInformation.hThread);
 		return Handle{processInformation.hProcess};
 	}
 
