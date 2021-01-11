@@ -32,36 +32,36 @@ namespace Windows {
 	inline std::wstring toWide(std::string_view byteString, UINT codePage = CP_UTF8);
 
 	class WindowsErrorCategory : public std::error_category {
-			static constexpr char selfName[] = "MyWindowsErrorCategory";
-		public:
-			virtual const char* name() const noexcept {
-				return selfName;
-			}
-			virtual std::string message(int messageID) const {
-				auto getErrorMessage = [](DWORD messageID, DWORD completeLanguageID) {
-					auto messageBuffer = LPWSTR{};
-					auto size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-					                           nullptr, messageID, completeLanguageID, reinterpret_cast<LPWSTR>(&messageBuffer), 0, nullptr);
-					auto message = std::string {"<Cannot retrieve error message>"};
-					if(size > 0) {
-						try {
-							auto buf = LocalMemory<LPWSTR> {messageBuffer};
-							message.assign(toBytes({buf.get(), size}));
-						}
-						catch(...) { }
+		static constexpr char selfName[] = "MyWindowsErrorCategory";
+	public:
+		virtual const char* name() const noexcept {
+			return selfName;
+		}
+		virtual std::string message(int messageID) const {
+			auto getErrorMessage = [](DWORD messageID, DWORD completeLanguageID) {
+				auto messageBuffer = LPWSTR{};
+				auto size = FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+					nullptr, messageID, completeLanguageID, reinterpret_cast<LPWSTR>(&messageBuffer), 0, nullptr);
+				auto message = std::string{ "<Cannot retrieve error message>" };
+				if (size > 0) {
+					try {
+						auto buf = LocalMemory<LPWSTR>{ messageBuffer };
+						message.assign(toBytes({ buf.get(), size }));
 					}
-					return message;
-				};
-				auto message = getErrorMessage(messageID, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
-				message += '\n';
-				message += getErrorMessage(messageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT));
+					catch (...) {}
+				}
 				return message;
-			}
+			};
+			auto message = getErrorMessage(messageID, MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
+			message += '\n';
+			message += getErrorMessage(messageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT));
+			return message;
+		}
 	};
 
 	inline const WindowsErrorCategory& GetWindowsCategory() {
 		auto lastError = GetLastError();
-		static thread_local auto windowsErrorCategory = WindowsErrorCategory {};
+		static thread_local auto windowsErrorCategory = WindowsErrorCategory{};
 		SetLastError(lastError);
 		return windowsErrorCategory;
 	}
@@ -73,7 +73,7 @@ namespace Windows {
 		ErrorCodeType lastError;
 	};
 	template<typename Predicate, typename ErrorCodeType>
-	CheckWin32ResultProxy(const char*, Predicate, ErrorCodeType) -> CheckWin32ResultProxy<Predicate, ErrorCodeType>;
+	CheckWin32ResultProxy(const char*, Predicate, ErrorCodeType)->CheckWin32ResultProxy<Predicate, ErrorCodeType>;
 
 	inline constexpr std::equal_to<> successValue;
 	inline constexpr std::not_equal_to<> errorValue;
@@ -82,12 +82,12 @@ namespace Windows {
 
 	template<typename ReturnType, typename Predicate, typename ErrorCodeType>
 	ReturnType operator>>(ReturnType result, const CheckWin32ResultProxy<Predicate, ErrorCodeType>& proxy) {
-		if(not proxy.predicate(result)) {
+		if (not proxy.predicate(result)) {
 			if constexpr (std::is_same_v<ErrorCodeType, ResultIsErrorCode>) {
-				throw std::system_error(result, WindowsErrorCategory(), std::string{proxy.name} + " failed");
+				throw std::system_error(result, WindowsErrorCategory(), std::string{ proxy.name } + " failed");
 			}
 			else {
-				throw std::system_error(proxy.lastError, WindowsErrorCategory(), std::string{proxy.name} + " failed");
+				throw std::system_error(proxy.lastError, WindowsErrorCategory(), std::string{ proxy.name } + " failed");
 			}
 		}
 		return result;
@@ -95,17 +95,17 @@ namespace Windows {
 
 	template<typename Expected, typename ExpectKind, typename ErrorCodeType = DWORD>
 	auto checkWin32Result(const char* actionName, ExpectKind resultChecker, const Expected& expected, ErrorCodeType lastError = GetLastError()) {
-		if constexpr(std::is_same_v<ExpectKind, SuccessIf>) {
-			return CheckWin32ResultProxy{actionName, expected, lastError};
+		if constexpr (std::is_same_v<ExpectKind, SuccessIf>) {
+			return CheckWin32ResultProxy{ actionName, expected, lastError };
 		}
 		else {
-			return CheckWin32ResultProxy{actionName, std::bind(resultChecker, expected, std::placeholders::_1), lastError};
+			return CheckWin32ResultProxy{ actionName, std::bind(resultChecker, expected, std::placeholders::_1), lastError };
 		}
 	}
 
 	inline std::wstring toWide(std::string_view byteString, UINT codePage /* = CP_UTF8 */) {
-		if(byteString.empty()) {
-			return std::wstring {};
+		if (byteString.empty()) {
+			return std::wstring{};
 		}
 
 		auto neededCharacters = MultiByteToWideChar(codePage, 0, byteString.data(), byteString.size(), nullptr, 0);
@@ -116,12 +116,12 @@ namespace Windows {
 		auto convertedCharacters = MultiByteToWideChar(codePage, 0, byteString.data(), byteString.size(), buf.get(), neededCharacters);
 		convertedCharacters >> checkWin32Result("MultiByteToWideChar", successValue, neededCharacters);
 
-		return std::wstring {buf.get(), static_cast<size_t>(convertedCharacters)};
+		return std::wstring{ buf.get(), static_cast<size_t>(convertedCharacters) };
 	}
 
 	inline std::string toBytes(std::wstring_view wideString, UINT codePage /* = CP_UTF8 */) {
-		if(wideString.empty()) {
-			return std::string {};
+		if (wideString.empty()) {
+			return std::string{};
 		}
 
 		auto neededCharacters = WideCharToMultiByte(codePage, 0, wideString.data(), wideString.size(), nullptr, 0, nullptr, nullptr);
@@ -132,14 +132,14 @@ namespace Windows {
 		auto convertedCharacters = WideCharToMultiByte(codePage, 0, wideString.data(), wideString.size(), buf.get(), neededCharacters, nullptr, nullptr);
 		convertedCharacters >> checkWin32Result("MultiByteToWideChar", successValue, neededCharacters);
 
-		return std::string {buf.get(), static_cast<size_t>(convertedCharacters)};
+		return std::string{ buf.get(), static_cast<size_t>(convertedCharacters) };
 	}
 
 	template<typename T> struct NullableStruct {
 		constexpr NullableStruct(std::nullptr_t = nullptr) noexcept { }
 		constexpr NullableStruct(std::nullopt_t) noexcept { }
-		constexpr NullableStruct(const std::optional<T>& data) : data{data} { }
-		constexpr NullableStruct(std::optional<T>&& data) : data{std::move(data)} { }
+		constexpr NullableStruct(const std::optional<T>& data) : data{ data } { }
+		constexpr NullableStruct(std::optional<T>&& data) : data{ std::move(data) } { }
 		constexpr T& operator*() { return this->data.value(); }
 		constexpr const T& operator*() const { return this->data.value(); }
 		constexpr std::optional<T>& operator->() { return this->data; }
@@ -161,7 +161,7 @@ namespace Windows {
 		void operator()(const pointer& windowClass) const noexcept {
 			try {
 				UnregisterClassW(windowClass->atom, windowClass->module)
-				        >> checkWin32Result("UnregisterClassW", errorValue, FALSE);
+						>> checkWin32Result("UnregisterClassW", errorValue, FALSE);
 			}
 			catch(const std::exception& e) {
 				MessageBoxA(nullptr, e.what(), 0, MB_OK | MB_ICONERROR);
@@ -176,7 +176,7 @@ namespace Windows {
 
 	template<typename WindowType>
 	WindowClassHolder registerWindowClass(const std::wstring& className, HICON icon,
-	                                      HINSTANCE moduleInstance = GetModuleHandle(nullptr)) {
+										  HINSTANCE moduleInstance = GetModuleHandle(nullptr)) {
 		auto windowClassExtended = WNDCLASSEXW {};
 		windowClassExtended.cbSize        = sizeof(WNDCLASSEX);
 		windowClassExtended.style         = CS_HREDRAW | CS_VREDRAW;
@@ -192,7 +192,7 @@ namespace Windows {
 		windowClassExtended.hIconSm       = icon;
 
 		auto result = ULONG_PTR{RegisterClassExW(&windowClassExtended)}
-		              >> checkWin32Result("RegisterClassExW", errorValue, ULONG_PTR{0});
+					  >> checkWin32Result("RegisterClassExW", errorValue, ULONG_PTR{0});
 		return WindowClassHolder{{WindowClassData{reinterpret_cast<LPCWSTR>(result), moduleInstance}}};
 	}*/
 
@@ -206,23 +206,23 @@ namespace Windows {
 	using WindowHandle = std::unique_ptr<HWND, WindowDestroyer>;
 
 	inline WindowHandle createChildWindow(HWND parent, LPCWSTR windowClass,
-	                                      const std::wstring& windowName, DWORD style, DWORD extendedStyle,
-	                                      int x, int y, int width, int height,
-	                                      HMENU menuHandle = nullptr, HINSTANCE moduleInstance = nullptr, LPVOID parameters = nullptr) {
+		const std::wstring& windowName, DWORD style, DWORD extendedStyle,
+		int x, int y, int width, int height,
+		HMENU menuHandle = nullptr, HINSTANCE moduleInstance = nullptr, LPVOID parameters = nullptr) {
 		auto rawHandle = CreateWindowExW(extendedStyle, windowClass, windowName.c_str(), style,
-		                                 x, y, width, height, parent, menuHandle, moduleInstance, parameters);
+			x, y, width, height, parent, menuHandle, moduleInstance, parameters);
 		rawHandle >> checkWin32Result("CreateWindowExW", errorValue, nullptr);
-		return WindowHandle { rawHandle };
+		return WindowHandle{ rawHandle };
 	}
 
 	inline WindowHandle createControl(HWND parent, int childIdentifier, LPCWSTR windowClass,
-	                                  const std::wstring& windowName, DWORD style, DWORD extendedStyle,
-	                                  int x, int y, int width, int height,
-	                                  HINSTANCE moduleInstance = nullptr, LPVOID parameters = nullptr) {
+		const std::wstring& windowName, DWORD style, DWORD extendedStyle,
+		int x, int y, int width, int height,
+		HINSTANCE moduleInstance = nullptr, LPVOID parameters = nullptr) {
 		auto rawHandle = CreateWindowExW(extendedStyle, windowClass, windowName.c_str(), style | WS_CHILD,
-		                                 x, y, width, height, parent, reinterpret_cast<HMENU>(childIdentifier), moduleInstance, parameters)
-		                 >> checkWin32Result("CreateWindowExW", errorValue, nullptr);
-		return WindowHandle { rawHandle };
+			x, y, width, height, parent, reinterpret_cast<HMENU>(childIdentifier), moduleInstance, parameters)
+			>> checkWin32Result("CreateWindowExW", errorValue, nullptr);
+		return WindowHandle{ rawHandle };
 	}
 
 	inline HWND getControlByID(HWND parent, int childIdentifier) {
@@ -238,15 +238,15 @@ namespace Windows {
 		using HandlerTable = std::unordered_map<UINT, MessageHandler>;
 
 		static INT_PTR CALLBACK dialogCallbacks(HWND windowHandle, UINT messageID, WPARAM wParam, LPARAM lParam) noexcept {
-			if(messageID == WM_INITDIALOG) {
+			if (messageID == WM_INITDIALOG) {
 				SetLastError(ERROR_SUCCESS);
 				//If messageID is WM_INITDIALOG, then set long ptr
 				SetWindowLongPtrW(windowHandle, DWLP_USER, lParam);
 				auto lastError = GetLastError();
 				try {
-					lastError >> checkWin32Result("SetWindowLongPtrW", successValue, DWORD{ERROR_SUCCESS});
+					lastError >> checkWin32Result("SetWindowLongPtrW", successValue, DWORD{ ERROR_SUCCESS });
 				}
-				catch(...) {
+				catch (...) {
 					//If there errors occurred when seeting DWLP_USER...
 					reinterpret_cast<ModalDialogBox*>(lParam)->exceptionLocation = std::current_exception();
 					EndDialog(windowHandle, -1);
@@ -254,14 +254,14 @@ namespace Windows {
 			}
 
 			auto dataAddress = reinterpret_cast<ModalDialogBox*>(GetWindowLongPtrW(windowHandle, DWLP_USER));
-			if(dataAddress == nullptr) {
+			if (dataAddress == nullptr) {
 				//If there is no dwlp_user, then return
 				return FALSE;
 			}
 
 			auto& data = *dataAddress;
 
-			if((data.callbacksReference.get().count(messageID) == 0) or (data.exceptionLocation != nullptr)) {
+			if ((data.callbacksReference.get().count(messageID) == 0) or (data.exceptionLocation != nullptr)) {
 				//If there is no callbacks, then return
 				return FALSE;
 			}
@@ -269,7 +269,7 @@ namespace Windows {
 			try {
 				return data.callbacksReference.get().at(messageID)(windowHandle, wParam, lParam);
 			}
-			catch(...) {
+			catch (...) {
 				data.exceptionLocation = std::current_exception();
 				EndDialog(windowHandle, -1);
 				return FALSE;
@@ -281,12 +281,12 @@ namespace Windows {
 	};
 
 	inline INT_PTR modalDialogBox(const ModalDialogBox::HandlerTable& callbacks, DWORD styles, DWORD extendedStyles, HWND parent = nullptr, HINSTANCE moduleHandle = nullptr) {
-		auto buffer = std::aligned_storage_t<sizeof(DLGTEMPLATE) + 4 * sizeof(WORD), alignof(DLGTEMPLATE)> {};
+		auto buffer = std::aligned_storage_t<sizeof(DLGTEMPLATE) + 4 * sizeof(WORD), alignof(DLGTEMPLATE)>{};
 		auto& dialogBoxTemplate = *reinterpret_cast<DLGTEMPLATE*>(&buffer);
-		dialogBoxTemplate = DLGTEMPLATE{styles, extendedStyles};
-		auto data = ModalDialogBox{callbacks};
+		dialogBoxTemplate = DLGTEMPLATE{ styles, extendedStyles };
+		auto data = ModalDialogBox{ callbacks };
 		auto returnValue = DialogBoxIndirectParam(moduleHandle, &dialogBoxTemplate, parent, &ModalDialogBox::dialogCallbacks, reinterpret_cast<LPARAM>(&data));
-		if(data.exceptionLocation) {
+		if (data.exceptionLocation) {
 			std::rethrow_exception(data.exceptionLocation);
 		}
 		returnValue >> checkWin32Result("DialogBoxIndirectParam", errorValue, -1);
@@ -314,7 +314,7 @@ namespace Windows {
 	}
 
 	inline RECT setWindowRectByClientRect(HWND windowHandle, int width, int height) {
-		auto expectedClientRect = RECT {0, 0, width, height};
+		auto expectedClientRect = RECT{ 0, 0, width, height };
 		auto realClientRect = getClientRect(windowHandle);
 		auto windowRect = getWindowRect(windowHandle);
 		windowRect.left += expectedClientRect.left - realClientRect.left;
@@ -334,8 +334,8 @@ namespace Windows {
 	using DeviceContextOwner = std::unique_ptr<HDC, DeviceContextDeleter>;
 
 	inline DeviceContextOwner createCompatibleDeviceContext(HDC existingContext) {
-		return DeviceContextOwner{CreateCompatibleDC(existingContext)
-		                          >> checkWin32Result("CreateCompatibleDC", errorValue, nullptr)};
+		return DeviceContextOwner{ CreateCompatibleDC(existingContext)
+								  >> checkWin32Result("CreateCompatibleDC", errorValue, nullptr) };
 	}
 
 	struct WindowDeviceContext {
@@ -354,12 +354,12 @@ namespace Windows {
 	using RetrievedWindowDeviceContext = std::unique_ptr<WindowDeviceContext, WindowDeviceContextReleaser>;
 
 	inline RetrievedWindowDeviceContext getDeviceContext(HWND windowHandle) {
-		return RetrievedWindowDeviceContext{{
+		return RetrievedWindowDeviceContext{ {
 				WindowDeviceContext{
 					windowHandle,
 					GetDC(windowHandle) >> checkWin32Result("GetDC", errorValue, nullptr)
 				}
-			}};
+			} };
 	}
 
 	struct PaintStruct {
@@ -381,8 +381,8 @@ namespace Windows {
 	inline PaintStructHolder beginPaint(HWND windowHandle) {
 		auto paintStruct = PAINTSTRUCT{};
 		auto context = BeginPaint(windowHandle, &paintStruct)
-		               >> checkWin32Result("BeginPaint", errorValue, nullptr);
-		return PaintStructHolder{{PaintStruct{windowHandle, paintStruct, context}}};
+			>> checkWin32Result("BeginPaint", errorValue, nullptr);
+		return PaintStructHolder{ {PaintStruct{windowHandle, paintStruct, context}} };
 	}
 
 	template<typename T>
@@ -392,7 +392,7 @@ namespace Windows {
 		T object;
 	};
 	template<typename T>
-	GDIPreviousObject(HDC, T) -> GDIPreviousObject<T>;
+	GDIPreviousObject(HDC, T)->GDIPreviousObject<T>;
 
 	template<typename T, typename SelectObjectFunctor>
 	struct GDISelectObjectRestorer {
@@ -401,7 +401,7 @@ namespace Windows {
 			try {
 				restore(previous->context, previous->object).release();
 			}
-			catch(const std::exception& e) {
+			catch (const std::exception& e) {
 				MessageBoxW(nullptr, toWide(e.what()).c_str(), 0, MB_OK | MB_ICONERROR);
 			}
 		}
@@ -415,11 +415,11 @@ namespace Windows {
 	struct SelectObjectFunctor {
 		auto operator()(HDC context, HGDIOBJ newObject) const {
 			auto previous = SelectObject(context, newObject)
-			>> checkWin32Result("SelectObject", successIf, [](HGDIOBJ result) {
+				>> checkWin32Result("SelectObject", successIf, [](HGDIOBJ result) {
 				return (result != nullptr) and (result != HGDI_ERROR);
-			});
+					});
 			using Restorer = GDISelectObjectRestorer<HGDIOBJ, SelectObjectFunctor>;
-			return GDISelectObjectRestoreData<Restorer> {{GDIPreviousObject{context, previous}}, Restorer{*this}};
+			return GDISelectObjectRestoreData<Restorer> { {GDIPreviousObject{ context, previous }}, Restorer{ *this }};
 		}
 	};
 	inline constexpr SelectObjectFunctor selectObject;
@@ -428,7 +428,7 @@ namespace Windows {
 		auto operator()(HDC context, int newBackgroundMode) const {
 			auto previous = SetBkMode(context, newBackgroundMode) >> checkWin32Result("SetBkMode", errorValue, 0);
 			using Restorer = GDISelectObjectRestorer<int, SelectBackgroundModeFunctor>;
-			return GDISelectObjectRestoreData<Restorer> {{GDIPreviousObject{context, previous}}, Restorer{*this}};
+			return GDISelectObjectRestoreData<Restorer> { {GDIPreviousObject{ context, previous }}, Restorer{ *this }};
 		}
 	};
 	inline constexpr SelectBackgroundModeFunctor setBackgroundMode;
@@ -437,23 +437,23 @@ namespace Windows {
 		auto operator()(HDC context, COLORREF newTextColor) const {
 			auto previous = SetTextColor(context, newTextColor) >> checkWin32Result("SetTextColor", errorValue, CLR_INVALID);
 			using Restorer = GDISelectObjectRestorer<COLORREF, SelectTextColorFunctor>;
-			return GDISelectObjectRestoreData<Restorer> {{GDIPreviousObject{context, previous}}, Restorer{*this}};
+			return GDISelectObjectRestoreData<Restorer> { {GDIPreviousObject{ context, previous }}, Restorer{ *this }};
 		}
 	};
 	inline constexpr SelectTextColorFunctor setTextColor;
 
 	template<auto tag, typename Data, typename Deleter>
 	struct TaggedHandle {
-			using Handle = typename std::unique_ptr<Data, Deleter>::pointer;
-			static constexpr auto typeID = tag;
-			constexpr TaggedHandle() noexcept = default;
-			explicit TaggedHandle(Handle handle) noexcept : handle { handle } { }
-			TaggedHandle(TaggedHandle&& other) noexcept : handle { std::move(other.handle) } { }
-			template<typename... Args> TaggedHandle(Args&&... args) noexcept : handle { std::forward<Args>(args)... } { }
-			TaggedHandle& operator=(TaggedHandle&& other) noexcept { this->handle = std::move(other.handle); return *this; };
-			Handle get() const noexcept { return this->handle.get(); }
-		private:
-			std::unique_ptr<Data, Deleter> handle;
+		using Handle = typename std::unique_ptr<Data, Deleter>::pointer;
+		static constexpr auto typeID = tag;
+		constexpr TaggedHandle() noexcept = default;
+		explicit TaggedHandle(Handle handle) noexcept : handle{ handle } { }
+		TaggedHandle(TaggedHandle&& other) noexcept : handle{ std::move(other.handle) } { }
+		template<typename... Args> TaggedHandle(Args&&... args) noexcept : handle{ std::forward<Args>(args)... } { }
+		TaggedHandle& operator=(TaggedHandle&& other) noexcept { this->handle = std::move(other.handle); return *this; };
+		Handle get() const noexcept { return this->handle.get(); }
+	private:
+		std::unique_ptr<Data, Deleter> handle;
 	};
 
 	template<typename HandleType>
@@ -477,37 +477,37 @@ namespace Windows {
 	using IconHandle = TaggedHandle<IMAGE_ICON, HICON, IconDeleter>;
 
 	inline BitmapHandle createCompatibleBitmap(HDC deviceContext, int width, int height) {
-		return BitmapHandle{CreateCompatibleBitmap(deviceContext, width, height)
-		                    >> checkWin32Result("CreateComspatibleBitmap", errorValue, nullptr)};
+		return BitmapHandle{ CreateCompatibleBitmap(deviceContext, width, height)
+							>> checkWin32Result("CreateComspatibleBitmap", errorValue, nullptr) };
 	}
 
 	template<typename ImageHandle>
-	ImageHandle loadImage(const std::wstring& fileName, std::pair<int, int> xy = {0, 0}) {
-		auto result = LoadImageW(nullptr, fileName.c_str(), ImageHandle::typeID, xy.first, xy.second, LR_LOADFROMFILE|LR_DEFAULTSIZE)
-		              >> checkWin32Result("LoadImageW", errorValue, nullptr);
-		return ImageHandle { reinterpret_cast<typename ImageHandle::Handle>(result) };
+	ImageHandle loadImage(const std::wstring& fileName, std::pair<int, int> xy = { 0, 0 }) {
+		auto result = LoadImageW(nullptr, fileName.c_str(), ImageHandle::typeID, xy.first, xy.second, LR_LOADFROMFILE | LR_DEFAULTSIZE)
+			>> checkWin32Result("LoadImageW", errorValue, nullptr);
+		return ImageHandle{ reinterpret_cast<typename ImageHandle::Handle>(result) };
 	}
 
 	template<typename ImageHandle>
-	ImageHandle loadImage(HINSTANCE module, WORD resourceID, std::pair<int, int> xy = {0, 0}) {
+	ImageHandle loadImage(HINSTANCE module, WORD resourceID, std::pair<int, int> xy = { 0, 0 }) {
 		auto result = LoadImageW(module, MAKEINTRESOURCEW(resourceID), ImageHandle::typeID, xy.first, xy.second, LR_DEFAULTSIZE)
-		              >> checkWin32Result("LoadImageW", errorValue, nullptr);
-		return ImageHandle { reinterpret_cast<typename ImageHandle::Handle>(result) };
+			>> checkWin32Result("LoadImageW", errorValue, nullptr);
+		return ImageHandle{ reinterpret_cast<typename ImageHandle::Handle>(result) };
 	}
 
 	inline BrushHandle createPatternBrush(HBITMAP bitmap) {
-		return BrushHandle { CreatePatternBrush(bitmap)
-		                     >> checkWin32Result("CreatePatternBrush", errorValue, nullptr) };
+		return BrushHandle{ CreatePatternBrush(bitmap)
+							 >> checkWin32Result("CreatePatternBrush", errorValue, nullptr) };
 	}
 
 	inline FontHandle createFontIndirect(const LOGFONTW& fontAttributes) {
-		return FontHandle { CreateFontIndirectW(&fontAttributes)
-		                    >> checkWin32Result("CreateFontIndirect", errorValue, nullptr) };
+		return FontHandle{ CreateFontIndirectW(&fontAttributes)
+							>> checkWin32Result("CreateFontIndirect", errorValue, nullptr) };
 	}
 
 	struct BitmapBits {
 		std::pair<long, long> imageSize() const noexcept {
-			return {this->bitmapInfo.bmiHeader.biWidth, std::abs(this->bitmapInfo.bmiHeader.biHeight)};
+			return { this->bitmapInfo.bmiHeader.biWidth, std::abs(this->bitmapInfo.bmiHeader.biHeight) };
 		}
 		BITMAPINFO bitmapInfo;
 		std::vector<DWORD> buffer;
@@ -519,54 +519,54 @@ namespace Windows {
 		header.biSize = sizeof(BITMAPINFOHEADER);
 
 		GetDIBits(deviceContext, bitmapHandle, 0, /*requiredAbsoluteHeight*/0, nullptr, &bitmapInfo, DIB_RGB_COLORS)
-		        >> checkWin32Result("GetDIBIts (retrieving bitmapinfo)", errorValue, false);
+			>> checkWin32Result("GetDIBIts (retrieving bitmapinfo)", errorValue, false);
 
-		if(header.biBitCount != 32) {
+		if (header.biBitCount != 32) {
 			throw std::runtime_error("Cannot get 32 bit pixels, got " + std::to_string(header.biBitCount) + " instead.");
 		}
 
 		auto absoluteHeight = std::abs(header.biHeight);
-		if(requiredWidthHeight.has_value()) {
+		if (requiredWidthHeight.has_value()) {
 			auto [requiredWidth, requiredHeight] = requiredWidthHeight.value();
-			if(requiredWidth != header.biWidth) {
+			if (requiredWidth != header.biWidth) {
 				throw std::runtime_error("Image width != required width");
 			}
 
 			auto requiredAbsoluteHeight = std::abs(requiredHeight);
 
-			if(absoluteHeight != requiredAbsoluteHeight) {
+			if (absoluteHeight != requiredAbsoluteHeight) {
 				throw std::runtime_error("Image height != required height");
 			}
 			header.biHeight = requiredHeight;
 		}
 
 		header.biCompression = BI_RGB;
-		auto buffer = std::vector<DWORD> {};
+		auto buffer = std::vector<DWORD>{};
 		buffer.resize(header.biWidth * absoluteHeight);
 		GetDIBits(deviceContext, bitmapHandle, 0, absoluteHeight, buffer.data(), &bitmapInfo, DIB_RGB_COLORS)
-		        >> checkWin32Result("GetDIBIts", errorValue, false);
+			>> checkWin32Result("GetDIBIts", errorValue, false);
 
-		return {bitmapInfo, std::move(buffer)};
+		return { bitmapInfo, std::move(buffer) };
 	}
 
 	inline void setBitmapBits(HDC deviceContext, HBITMAP bitmapHandle, const BitmapBits& bits) {
 		SetDIBits(deviceContext, bitmapHandle, 0, bits.imageSize().second,
-		          bits.buffer.data(), &(bits.bitmapInfo), DIB_RGB_COLORS)
-		        >> checkWin32Result("SetDIBIts", errorValue, false);
+			bits.buffer.data(), &(bits.bitmapInfo), DIB_RGB_COLORS)
+			>> checkWin32Result("SetDIBIts", errorValue, false);
 	}
 
 	template<typename ValueType>
 	std::vector<ValueType> loadBinaryDataResource(HMODULE module, LPCWSTR resource, LPCWSTR type) {
 		auto resourceInformation = FindResourceW(module, resource, type)
-		                           >> checkWin32Result("FindResourceW", errorValue, nullptr);
+			>> checkWin32Result("FindResourceW", errorValue, nullptr);
 		auto resourceHandle = LoadResource(module, resourceInformation)
-		                      >> checkWin32Result("LoadResource", errorValue, nullptr);
+			>> checkWin32Result("LoadResource", errorValue, nullptr);
 		auto data = static_cast<const ValueType*>(LockResource(resourceHandle))
-		            >> checkWin32Result("LockResource", errorValue, nullptr);
+			>> checkWin32Result("LockResource", errorValue, nullptr);
 		auto bytes = SizeofResource(module, resourceInformation)
-		            >> checkWin32Result("SizeofResource", errorValue, 0);
+			>> checkWin32Result("SizeofResource", errorValue, 0);
 
-		auto buffer = std::vector<ValueType> {};
+		auto buffer = std::vector<ValueType>{};
 		auto count = bytes / sizeof(ValueType);
 		buffer.resize(count);
 		std::copy_n(data, count, std::begin(buffer));
@@ -583,10 +583,10 @@ namespace Windows {
 	using Handle = std::unique_ptr<HANDLE, HandleDeleter>;
 
 	inline Handle createFile(const std::wstring& fileName, DWORD desiredAccess, DWORD shareMode, DWORD creationDisposition,
-	                         DWORD flagAndAttributes = FILE_ATTRIBUTE_NORMAL, LPSECURITY_ATTRIBUTES securityAttributes = nullptr, HANDLE fileTemplate = nullptr) {
-		return Handle { CreateFileW(fileName.c_str(), desiredAccess, shareMode, securityAttributes,
-		                            creationDisposition, flagAndAttributes, fileTemplate)
-		                >> checkWin32Result(("CreateFileW [" + toBytes(fileName) + ']').c_str(), errorValue, INVALID_HANDLE_VALUE) };
+		DWORD flagAndAttributes = FILE_ATTRIBUTE_NORMAL, LPSECURITY_ATTRIBUTES securityAttributes = nullptr, HANDLE fileTemplate = nullptr) {
+		return Handle{ CreateFileW(fileName.c_str(), desiredAccess, shareMode, securityAttributes,
+									creationDisposition, flagAndAttributes, fileTemplate)
+						>> checkWin32Result(("CreateFileW [" + toBytes(fileName) + ']').c_str(), errorValue, INVALID_HANDLE_VALUE) };
 	}
 
 	inline LONGLONG getFileSize(HANDLE fileHandle) {
@@ -627,25 +627,24 @@ namespace Windows {
 		auto data = WIN32_FIND_DATAW{};
 		auto rawHandle = FindFirstFileW(path.c_str(), &data);
 		auto lastError = GetLastError();
-		if(rawHandle == INVALID_HANDLE_VALUE and lastError == ERROR_FILE_NOT_FOUND) {
+		if (rawHandle == INVALID_HANDLE_VALUE and lastError == ERROR_FILE_NOT_FOUND) {
 			return {};
 		}
-		auto handle = FindHandle {rawHandle >> checkWin32Result(("FindFirstFile [" + toBytes(path) + ']').c_str(), errorValue, INVALID_HANDLE_VALUE, lastError)};
+		auto handle = FindHandle{ rawHandle >> checkWin32Result(("FindFirstFile [" + toBytes(path) + ']').c_str(), errorValue, INVALID_HANDLE_VALUE, lastError) };
 
-		auto fileNames = std::vector<std::wstring> {};
+		auto fileNames = std::vector<std::wstring>{};
 		auto nextFileExist = false;
 		do {
-			if(predicate(data)) {
+			if (predicate(data)) {
 				fileNames.emplace_back(data.cFileName);
 			}
 
 			nextFileExist = FindNextFileW(handle.get(), &data);
 			lastError = GetLastError();
-			if(lastError != ERROR_NO_MORE_FILES) {
+			if (lastError != ERROR_NO_MORE_FILES) {
 				nextFileExist >> checkWin32Result("FindNextFile", errorValue, false, lastError);
 			}
-		}
-		while(nextFileExist);
+		} while (nextFileExist);
 		return fileNames;
 	}
 
@@ -658,7 +657,7 @@ namespace Windows {
 	}
 
 	inline void appendToFolder(std::wstring& folder, std::wstring_view subPath) {
-		if(not folder.empty() and PathGetCharType(folder.back()) != GCT_SEPARATOR) {
+		if (not folder.empty() and PathGetCharType(folder.back()) != GCT_SEPARATOR) {
 			folder += L'\\';
 		}
 		folder += subPath;
@@ -670,9 +669,9 @@ namespace Windows {
 	}
 
 	inline void shellExecute(HWND associatedWindow, LPCWSTR operation, const std::wstring& file, int showMode = SW_SHOWNORMAL,
-	                         LPCWSTR parameters = nullptr, LPCWSTR directory = nullptr) {
+		LPCWSTR parameters = nullptr, LPCWSTR directory = nullptr) {
 
-		auto info = SHELLEXECUTEINFOW{sizeof(SHELLEXECUTEINFOW)};
+		auto info = SHELLEXECUTEINFOW{ sizeof(SHELLEXECUTEINFOW) };
 		info.fMask = SEE_MASK_DEFAULT;
 		info.hwnd = associatedWindow;
 		info.lpVerb = operation;
@@ -684,18 +683,18 @@ namespace Windows {
 	}
 
 	inline Handle createProcess(std::wstring commandLine, LPCWSTR currentDirectory,
-	                            DWORD creationFlags = 0, bool inheritHandles = false, LPVOID environments = nullptr, LPSTARTUPINFOW startUpInfo = nullptr,
-	                            LPSECURITY_ATTRIBUTES processAttributes = nullptr, LPSECURITY_ATTRIBUTES threadAttribtues = nullptr) {
-		auto defaultStartUpInfo = STARTUPINFOW{sizeof(STARTUPINFOW)};
-		if(startUpInfo == nullptr) {
+		DWORD creationFlags = 0, bool inheritHandles = false, LPVOID environments = nullptr, LPSTARTUPINFOW startUpInfo = nullptr,
+		LPSECURITY_ATTRIBUTES processAttributes = nullptr, LPSECURITY_ATTRIBUTES threadAttribtues = nullptr) {
+		auto defaultStartUpInfo = STARTUPINFOW{ sizeof(STARTUPINFOW) };
+		if (startUpInfo == nullptr) {
 			startUpInfo = &defaultStartUpInfo;
 		}
 		auto processInformation = PROCESS_INFORMATION{};
 		CreateProcessW(nullptr, commandLine.data(), processAttributes, threadAttribtues,
-		               inheritHandles, creationFlags, environments, currentDirectory, startUpInfo, &processInformation)
-		        >> checkWin32Result("CreateProcessW", errorValue, false);
+			inheritHandles, creationFlags, environments, currentDirectory, startUpInfo, &processInformation)
+			>> checkWin32Result("CreateProcessW", errorValue, false);
 		CloseHandle(processInformation.hThread);
-		return Handle{processInformation.hProcess};
+		return Handle{ processInformation.hProcess };
 	}
 
 	struct RegistryKeyCloser {
@@ -708,41 +707,41 @@ namespace Windows {
 	using RegistryKey = std::unique_ptr<HKEY, RegistryKeyCloser>;
 
 	inline RegistryKey openRegistryKey(HKEY root, const std::wstring& path, REGSAM securityAccessMask = KEY_READ) {
-		auto rawHandle = HKEY{nullptr};
+		auto rawHandle = HKEY{ nullptr };
 		RegOpenKeyExW(root, path.c_str(), 0, securityAccessMask, &rawHandle)
-		        >> checkWin32Result("RegOpenKeyExW", successValue, ERROR_SUCCESS, resultIsErrorCode);
-		return RegistryKey{rawHandle};
+			>> checkWin32Result("RegOpenKeyExW", successValue, ERROR_SUCCESS, resultIsErrorCode);
+		return RegistryKey{ rawHandle };
 	}
 
 	inline std::wstring getRegistryString(HKEY registryKey, const std::wstring& valueName) {
 		auto valueType = DWORD{};
 		auto bufferBytes = DWORD{};
 		RegQueryValueExW(registryKey, valueName.c_str(), nullptr, &valueType, nullptr, &bufferBytes)
-		        >> checkWin32Result("RegGetValue (retrieving buffer size)", successValue, ERROR_SUCCESS, resultIsErrorCode);
+			>> checkWin32Result("RegGetValue (retrieving buffer size)", successValue, ERROR_SUCCESS, resultIsErrorCode);
 
-		if(valueType != REG_SZ) {
+		if (valueType != REG_SZ) {
 			throw std::invalid_argument("getRegistryString() failed: value type may not be string");
 		}
 
-		if(bufferBytes % sizeof(wchar_t) != 0) {
+		if (bufferBytes % sizeof(wchar_t) != 0) {
 			throw std::invalid_argument("getRegistryString() failed: value type may not be string, bufferBytes % sizeof(wchar_t) != 0");
 		}
 
-		auto result = std::wstring{bufferBytes / sizeof(wchar_t), {}, std::wstring::allocator_type{}};
+		auto result = std::wstring{ bufferBytes / sizeof(wchar_t), {}, std::wstring::allocator_type{} };
 
 		RegQueryValueExW(registryKey, valueName.c_str(), nullptr, &valueType, reinterpret_cast<LPBYTE>(result.data()), &bufferBytes)
-		        >> checkWin32Result("RegGetValue", successValue, ERROR_SUCCESS, resultIsErrorCode);
+			>> checkWin32Result("RegGetValue", successValue, ERROR_SUCCESS, resultIsErrorCode);
 
-		if(valueType != REG_SZ) {
+		if (valueType != REG_SZ) {
 			throw std::invalid_argument("getRegistryString() failed: value type may not be string");
 		}
 
-		if(bufferBytes != (result.size() * sizeof(wchar_t))) {
+		if (bufferBytes != (result.size() * sizeof(wchar_t))) {
 			throw std::runtime_error("getRegistryString() failed, bufferBytes != result.size() * sizeof(wchar_t)");
 		}
 
-		constexpr auto nulLength = 1;
-		if(result.size() >= nulLength and result.back() == '\0') {
+		static constexpr auto nulLength = 1;
+		if (result.size() >= nulLength and result.back() == '\0') {
 			result.pop_back();
 		}
 
@@ -751,8 +750,8 @@ namespace Windows {
 
 	inline void setRegistryString(HKEY registryKey, const std::wstring& valueName, const std::wstring& value) {
 		RegSetValueExW(registryKey, valueName.c_str(), 0, REG_SZ,
-		               reinterpret_cast<const BYTE*>(value.c_str()), value.size() * sizeof(wchar_t))
-		        >> checkWin32Result("RegSetValueEx", successValue, ERROR_SUCCESS, resultIsErrorCode);
+			reinterpret_cast<const BYTE*>(value.c_str()), value.size() * sizeof(wchar_t))
+			>> checkWin32Result("RegSetValueEx", successValue, ERROR_SUCCESS, resultIsErrorCode);
 	}
 
 	template<typename T>
