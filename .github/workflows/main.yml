@@ -31,7 +31,10 @@ jobs:
       - name: Build
         run: |-
           g++ -c UserInterface.cpp -o UserInterface.o -Wall -std=c++17 -DUNICODE -D_UNICODE
+          dir
           g++ -c main.cpp -o main.o -Wall -std=c++17 -DUNICODE -D_UNICODE
+          dir
           windres -i resource.rc -o resource.res -O coff
+          dir
           g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -static-libstdc++ -lComctl32 -lShlwapi -static -lpthread
 
