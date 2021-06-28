@@ -49,23 +49,23 @@ namespace MyCSF {
 		CSF file format
 
 		struct CSF {
-		    char[4];                     //string " FSC"
-		    uint32_t;                    //unknown 0x00000003 in little endian, type / version number?
-		    uint32_t;                    //array size in little endian
-		    uint32_t;                    //array size in little endian
-		    uint32_t;                    //unknown zero, probably high-order bytes of array size?
-		    uint32_t;                    //unknown zero, probably high-order bytes of array size?
-		    LabbeledString[array size];  //array of strings with label
+			char[4];                     //string " FSC"
+			uint32_t;                    //unknown 0x00000003 in little endian, type / version number?
+			uint32_t;                    //array size in little endian
+			uint32_t;                    //array size in little endian
+			uint32_t;                    //unknown zero, probably high-order bytes of array size?
+			uint32_t;                    //unknown zero, probably high-order bytes of array size?
+			LabbeledString[array size];  //array of strings with label
 		}
 
 		struct LabbeledString {
-		    char[4];                //string " LBL"
-		    uint32_t;               //unknown 0x00000001 in little endian, type / version number?
-		    uint32_t;               //label size in little endian
-		    char[label size];       //string label name
-		    char[4];                //string " RTS"
-		    uint32_t;               //string size
-		    char16_t[string size];  //masked UTF-16 LE string: realChar = 0xFFFF ^ sourceChar
+			char[4];                //string " LBL"
+			uint32_t;               //unknown 0x00000001 in little endian, type / version number?
+			uint32_t;               //label size in little endian
+			char[label size];       //string label name
+			char[4];                //string " RTS"
+			uint32_t;               //string size
+			char16_t[string size];  //masked UTF-16 LE string: realChar = 0xFFFF ^ sourceChar
 		}
 	*/
 
@@ -90,10 +90,10 @@ namespace MyCSF {
 
 	namespace Details {
 		using namespace std::string_view_literals;
-		static constexpr auto header = std::string_view {" FSC" "\x03\x00\x00\x00"sv};
-		static constexpr auto zero32Bit = std::string_view {"\x00\x00\x00\x00"sv};
-		static constexpr auto lbl = std::string_view {" LBL" "\x01\x00\x00\x00"sv};
-		static constexpr auto rts = std::string_view {" RTS"sv};
+		static constexpr auto header = std::string_view{ " FSC" "\x03\x00\x00\x00"sv };
+		static constexpr auto zero32Bit = std::string_view{ "\x00\x00\x00\x00"sv };
+		static constexpr auto lbl = std::string_view{ " LBL" "\x01\x00\x00\x00"sv };
+		static constexpr auto rts = std::string_view{ " RTS"sv };
 
 		using namespace Input;
 
@@ -103,16 +103,16 @@ namespace MyCSF {
 			readAndCheckMagic(input, lbl);
 
 			auto labelSize = copyBytes<std::uint32_t>(input);
-			auto label = std::string{labelSize, '\0', std::string::allocator_type{}};
+			auto label = std::string{ labelSize, '\0', std::string::allocator_type{} };
 			copyFixed(input, label.begin(), label.size());
 
 			readAndCheckMagic(input, rts);
 
-			auto wideCharCount= copyBytes<std::uint32_t>(input);
-			auto string = std::wstring{wideCharCount, L'\xFFFF', std::wstring::allocator_type{}};
-			for(auto& wideChar : string) { wideChar = wideChar xor copyBytes<wchar_t>(input); }
+			auto wideCharCount = copyBytes<std::uint32_t>(input);
+			auto string = std::wstring{ wideCharCount, L'\xFFFF', std::wstring::allocator_type{} };
+			for (auto& wideChar : string) { wideChar = wideChar xor copyBytes<wchar_t>(input); }
 
-			return {std::move(label), std::move(string)};
+			return { std::move(label), std::move(string) };
 		}
 
 		template<typename OutputIterator, typename T>
@@ -129,7 +129,7 @@ namespace MyCSF {
 
 			out = writeAsBytes(out, *(rts.data()), rts.size());
 			out = writeAsBytes(out, string.size());
-			for(auto& character : string) character = character xor L'\xFFFF';
+			for (auto& character : string) character = character xor L'\xFFFF';
 			return writeAsBytes(out, *(string.data()), sizeof(*string.data()) * string.length());
 		}
 	}
@@ -143,7 +143,7 @@ namespace MyCSF {
 		auto stringCount1 = copyBytes<std::uint32_t>(csfRange);
 		auto stringCount2 = copyBytes<std::uint32_t>(csfRange);
 
-		if(stringCount1 != stringCount2) {
+		if (stringCount1 != stringCount2) {
 			throw std::invalid_argument("May not be able to correctly parse CSF file");
 		}
 
@@ -152,12 +152,12 @@ namespace MyCSF {
 
 		auto map = Container{};
 
-		for(auto i = std::uint32_t{0}; i < stringCount1; ++i) {
+		for (auto i = std::uint32_t{ 0 }; i < stringCount1; ++i) {
 			csfStringEmplacer(map, nextString(csfRange));
 		}
 
 		//ensure EOF is reached;
-		if(csfRange.current != csfRange.end) {
+		if (csfRange.current != csfRange.end) {
 			throw std::invalid_argument("CSF EOF not reached as expected");
 		}
 
@@ -167,7 +167,7 @@ namespace MyCSF {
 	template<typename ForwardIteratorRange, typename OutputIterator>
 	OutputIterator writeCSF(ForwardIteratorRange stringsToBeWritten, OutputIterator out) {
 		using namespace Details;
-		
+
 		auto count = std::distance(stringsToBeWritten.current, stringsToBeWritten.end);
 
 		out = writeAsBytes(out, *(header.data()), header.size());
@@ -176,7 +176,7 @@ namespace MyCSF {
 		out = writeAsBytes(out, *(zero32Bit.data()), zero32Bit.size());
 		out = writeAsBytes(out, *(zero32Bit.data()), zero32Bit.size());
 
-		for(const auto& [label, string] : stringsToBeWritten.rangeForLoop()) {
+		for (const auto& [label, string] : stringsToBeWritten.rangeForLoop()) {
 			out = writeString(label, string, out);
 		}
 		return out;

@@ -1,6 +1,8 @@
 #include "resource.h"
 
+#ifdef __GNUC__
 1 RT_MANIFEST "RA3.exe.Manifest"
+#endif
 1 VERSIONINFO
 FILEVERSION    0,9,1,0
 PRODUCTVERSION 0,9,1,0
