@@ -665,7 +665,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		auto childDC = reinterpret_cast<HDC>(hdcAddress);
 		setBackgroundMode(childDC, TRANSPARENT).release();
 		setTextColor(childDC, RGB(255, 255, 255)).release();
-		return (int)reinterpret_cast<INT_PTR>(commandLineBackground.get()); //per https://msdn.microsoft.com/en-us/library/windows/desktop/bb761691(v=vs.85).aspx
+		return reinterpret_cast<INT_PTR>(commandLineBackground.get()); //per https://msdn.microsoft.com/en-us/library/windows/desktop/bb761691(v=vs.85).aspx
 	};
 
 
