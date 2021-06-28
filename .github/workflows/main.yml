@@ -1,0 +1,40 @@
+name: Build Binary
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+#   push:
+#     branches: [ master ]
+#   pull_request:
+#     branches: [ master ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Install MinGW
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: any
+
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Build RA3.exe
+        run: |-
+          g++ -c UserInterface.cpp -o UserInterface.o -Wall -std=c++17 -DUNICODE -D_UNICODE
+          g++ -c main.cpp -o main.o -Wall -std=c++17 -DUNICODE -D_UNICODE
+          windres -i resource.rc -o resource.res -O coff
+          g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -static-libstdc++ -lComctl32 -lShlwapi -static -lpthread
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v2.2.4
+        with:
+          # Artifact name
+          name: RA3.exe
+          # A file, directory or wildcard pattern that describes what to upload
+          path: RA3.exe
+          retention-days: 90
+
