@@ -90,7 +90,7 @@ namespace MyCSF {
 
 	namespace Details {
 		using namespace std::string_view_literals;
-		static constexpr auto header = std::string_view {" FSC" "\x03\x00\x00\x00"sv};
+		static constexpr auto header = std::string_view {" FSC"sv};
 		static constexpr auto zero32Bit = std::string_view {"\x00\x00\x00\x00"sv};
 		static constexpr auto lbl = std::string_view {" LBL" "\x01\x00\x00\x00"sv};
 		static constexpr auto rts = std::string_view {" RTS"sv};
@@ -139,20 +139,21 @@ namespace MyCSF {
 		using namespace Details;
 
 		readAndCheckMagic(csfRange, header);
+		auto version = copyBytes<std::uint32_t>(csfRange);
 
-		auto stringCount1 = copyBytes<std::uint32_t>(csfRange);
-		auto stringCount2 = copyBytes<std::uint32_t>(csfRange);
+		auto stringCount = copyBytes<std::uint32_t>(csfRange);
+		auto labelCount = copyBytes<std::uint32_t>(csfRange);
 
-		if(stringCount1 != stringCount2) {
-			throw std::invalid_argument("May not be able to correctly parse CSF file");
+		if(stringCount != labelCount) {
+			throw std::invalid_argument("May not be able to correctly parse CSF file: stringCount != labelCount");
 		}
 
-		readAndCheckMagic(csfRange, zero32Bit);
-		readAndCheckMagic(csfRange, zero32Bit);
+		auto reserved = copyBytes<std::uint32_t>(csfRange);
+		auto languageCode = copyBytes<std::uint32_t>(csfRange);
 
 		auto map = Container{};
 
-		for(auto i = std::uint32_t{0}; i < stringCount1; ++i) {
+		for(auto i = std::uint32_t{0}; i < stringCount; ++i) {
 			csfStringEmplacer(map, nextString(csfRange));
 		}
 
