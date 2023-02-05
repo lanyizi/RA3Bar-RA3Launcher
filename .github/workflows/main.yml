@@ -28,7 +28,7 @@ jobs:
           g++ -c UserInterface.cpp -o UserInterface.o -Wall -std=c++17 -DUNICODE -D_UNICODE
           g++ -c main.cpp -o main.o -Wall -std=c++17 -DUNICODE -D_UNICODE
           windres -i resource.rc -o resource.res -O coff
-          g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -static-libstdc++ -lComctl32 -lShlwapi -static -lpthread
+          g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -static-libstdc++ -lComctl32 -lShlwapi -static -lpthread -s
       - name: Upload a Build Artifact
         uses: actions/upload-artifact@v2.2.4
         with:
