@@ -151,6 +151,17 @@ HWND findRA3Window(HANDLE processHandle) {
 			if((GetWindow(window, GW_OWNER) != nullptr) or (not IsWindowVisible(window))) {
 				return TRUE;
 			}
+            auto classNameBuffer = std::array<wchar_t, 256>{};
+			using namespace std::literals;
+			auto constexpr ra3ClassName = L"41DAF790-16F5-4881-8754-59FD8CF3B8D2"sv;
+			if(not GetClassNameW(window, classNameBuffer.data(), classNameBuffer.size())) {
+				return TRUE;
+			}
+			classNameBuffer[0] = ra3ClassName[0]; // 我的红警3魔改过（
+			if(classNameBuffer.data() != ra3ClassName) {
+				return TRUE;
+			}
+			// 这是红警3进程的窗口，完美匹配，不用继续找了
 			data.second = window;
 			return FALSE;
 		}
@@ -403,6 +414,7 @@ int main() {
 
 			auto finalArguments = ra3Path + gameExe + otherArguments + modArgument + replayArgument + configArgument;
 			auto game = createProcess(finalArguments, ra3Path.c_str());
+            // 假如游戏以窗口化模式启动，等待游戏窗口出现后，可以自动调整窗口位置
 			if(windowed.has_value()) {
 				constexpr auto interval = 499;
 				while(WaitForSingleObject(game.get(), interval) == WAIT_TIMEOUT) {
@@ -413,8 +425,12 @@ int main() {
 					if(gameWindow == nullptr) {
 						continue;
 					}
+					if(SendMessageTimeoutW(gameWindow, WM_NULL, 0, 0, SMTO_ERRORONEXIT, interval, nullptr) == 0) {
+                        continue;
+					}
 					auto rect = getWindowRect(gameWindow);
 
+                    // 在全屏窗口化模式下，自动居中窗口
 					if(fullscreen.has_value()) {
 						auto desktop = getWindowRect(GetDesktopWindow());
 						if(resolutionX.has_value()) {
@@ -425,6 +441,7 @@ int main() {
 						}
 					}
 
+                    // 假如玩家在命令行参数里指定了窗口位置，就将窗口移动到指定位置
 					if(ex.has_value()) {
 						rect.left = ex.value();
 					}
@@ -438,7 +455,7 @@ int main() {
 				}
 			}
 
-
+            // 等待游戏结束
 			WaitForSingleObject(game.get(), INFINITE) >> checkWin32Result("WaitForSingleOnject", errorValue, WAIT_FAILED);
 			auto exitCode = DWORD{0};
 			GetExitCodeProcess(game.get(), &exitCode) >> checkWin32Result("GetExitCodeProcess", errorValue, false);
