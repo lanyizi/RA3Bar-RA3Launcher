@@ -139,7 +139,7 @@ namespace MyCSF {
 		using namespace Details;
 
 		readAndCheckMagic(csfRange, header);
-		auto version = copyBytes<std::uint32_t>(csfRange);
+		[[maybe_unused]] auto version = copyBytes<std::uint32_t>(csfRange);
 
 		auto stringCount = copyBytes<std::uint32_t>(csfRange);
 		auto labelCount = copyBytes<std::uint32_t>(csfRange);
@@ -148,8 +148,8 @@ namespace MyCSF {
 			throw std::invalid_argument("May not be able to correctly parse CSF file: stringCount != labelCount");
 		}
 
-		auto reserved = copyBytes<std::uint32_t>(csfRange);
-		auto languageCode = copyBytes<std::uint32_t>(csfRange);
+		[[maybe_unused]] auto reserved = copyBytes<std::uint32_t>(csfRange);
+		[[maybe_unused]] auto languageCode = copyBytes<std::uint32_t>(csfRange);
 
 		auto map = Container{};
 
