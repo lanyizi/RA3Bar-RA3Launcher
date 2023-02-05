@@ -18,7 +18,7 @@ jobs:
       - name: Install MinGW
         uses: egor-tensin/setup-mingw@v2
         with:
-          platform: any
+          platform: x86
 
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
