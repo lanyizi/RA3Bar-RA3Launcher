@@ -108,6 +108,18 @@ std::optional<std::wstring> extractArgument(std::vector<std::wstring>& arguments
 	return value;
 }
 
+std::optional<int> parseInt(const std::optional<std::wstring>& string) {
+	if(not string.has_value()) {
+        return std::nullopt;
+	}
+	try {
+        return std::stoi(string.value());
+	}
+    catch(...) {
+        return std::nullopt;
+    }
+}
+
 std::optional<std::wstring> getItemFromSkudef(const std::wstring& skudefPath, std::wstring_view itemName) {
 	auto fileBuffer = readEntireFile<char>(Windows::createFile(skudefPath, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE, OPEN_EXISTING).get());
 	auto skudefContent = Windows::toWide({fileBuffer.data(), fileBuffer.size()});
@@ -227,13 +239,13 @@ int main() {
 			auto ev = getAndRemoveArgument(checkWithString(L"-runver"), ExtractMode::extractValue);
 			auto em = getAndRemoveArgument(checkWithString(L"-modConfig"), ExtractMode::extractValue);
 			auto er = getAndRemoveArgument(checkWithString(L"-replayGame"), ExtractMode::extractValue);
-			auto ex = getAndRemoveArgument(checkWithString(L"-x"), ExtractMode::extractValue);
-			auto ey = getAndRemoveArgument(checkWithString(L"-y"), ExtractMode::extractValue);
+			auto ex = parseInt(getAndRemoveArgument(checkWithString(L"-x"), ExtractMode::extractValue));
+			auto ey = parseInt(getAndRemoveArgument(checkWithString(L"-y"), ExtractMode::extractValue));
 			auto et = getAndRemoveArgument(checkWithString(L"-allowAlwaysOnTop"), ExtractMode::extractName);
 			auto windowed    = getArgument(L"-win", ExtractMode::extractName);
 			auto fullscreen  = getArgument(L"-fullscreen", ExtractMode::extractName);
-			auto resolutionX = getArgument(L"-xres", ExtractMode::extractValue);
-			auto resolutionY = getArgument(L"-yres", ExtractMode::extractValue);
+			auto resolutionX = parseInt(getArgument(L"-xres", ExtractMode::extractValue));
+			auto resolutionY = parseInt(getArgument(L"-yres", ExtractMode::extractValue));
 			if(not er.has_value()) {
 				er = getAndRemoveArgument(checkWithString(L"-file"), ExtractMode::extractValue);
 			}
@@ -346,8 +358,7 @@ int main() {
 				auto subVersionA = versionA.substr(versionA.find(L'.') + 1);
 				auto subVersionB = versionB.substr(versionB.find(L'.') + 1);
 				using std::pair;
-				using std::stoi;
-				return pair{stoi(versionA), stoi(subVersionA)} < pair{stoi(versionB), stoi(subVersionB)};
+				return pair{parseInt(versionA), parseInt(subVersionA)} < pair{parseInt(versionB), parseInt(subVersionB)};
 			});
 			if(skudefMax == std::end(allSkudefs)) {
 				notifyGameVersionNotFound(L"?", languageData);
@@ -407,30 +418,18 @@ int main() {
 					if(fullscreen.has_value()) {
 						auto desktop = getWindowRect(GetDesktopWindow());
 						if(resolutionX.has_value()) {
-							try {
-								rect.left = (rectWidth(desktop) - std::stoi(resolutionX.value())) / 2;
-							}
-							catch(...) { }
+							rect.left = (rectWidth(desktop) - resolutionX.value()) / 2;
 						}
 						if(resolutionY.has_value()) {
-							try {
-								rect.top = (rectHeight(desktop) - std::stoi(resolutionY.value())) / 2;
-							}
-							catch(...) { }
+							rect.top = (rectHeight(desktop) - resolutionY.value()) / 2;
 						}
 					}
 
 					if(ex.has_value()) {
-						try {
-							rect.left = std::stoi(ex.value());
-						}
-						catch(...) { }
+						rect.left = ex.value();
 					}
 					if(ey.has_value()) {
-						try {
-							rect.top = std::stoi(ey.value());
-						}
-						catch(...) { }
+						rect.top = ey.value();
 					}
 
 					auto zOrderFlag = et.has_value() ? SWP_NOZORDER : 0;
