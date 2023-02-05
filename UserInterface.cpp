@@ -657,7 +657,7 @@ std::optional<LaunchOptions> runControlCenter(const std::wstring& ra3Path, const
 		return TRUE;
 	};
 
-	handlers[WM_CTLCOLOREDIT] = [&commandLineBackground](HWND window, WPARAM hdcAddress, LPARAM childAddress) {
+	handlers[WM_CTLCOLOREDIT] = [&commandLineBackground](HWND window, WPARAM hdcAddress, LPARAM childAddress) -> INT_PTR {
 		auto childWindow = reinterpret_cast<HWND>(childAddress);
 		if(getControlID(childWindow) != commandLine) {
 			return FALSE;

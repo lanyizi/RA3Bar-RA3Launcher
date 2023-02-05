@@ -586,10 +586,13 @@ namespace Windows {
 		                >> checkWin32Result(("CreateFileW [" + toBytes(fileName) + ']').c_str(), errorValue, INVALID_HANDLE_VALUE) };
 	}
 
-	inline LONGLONG getFileSize(HANDLE fileHandle) {
+	inline std::size_t getFileSize(HANDLE fileHandle) {
 		auto fileSize = LARGE_INTEGER{};
 		GetFileSizeEx(fileHandle, &fileSize) >> checkWin32Result("GetFileSizeEx", errorValue, false);
-		return fileSize.QuadPart;
+		if(fileSize.QuadPart < 0) {
+            throw std::runtime_error("File size is negative");
+		}
+		return static_cast<std::size_t>(fileSize.QuadPart);
 	}
 
 	inline LONGLONG setFilePointer(HANDLE fileHandle, LONGLONG distanceToMove, DWORD moveMethod) {
