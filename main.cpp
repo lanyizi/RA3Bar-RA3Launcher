@@ -157,11 +157,11 @@ HWND findRA3Window(HANDLE processHandle) {
 			if(not GetClassNameW(window, classNameBuffer.data(), classNameBuffer.size())) {
 				return TRUE;
 			}
-			classNameBuffer[0] = ra3ClassName[0]; // ÎÒµÄºì¾¯3Ä§¸Ä¹ý£¨
+			classNameBuffer[0] = ra3ClassName[0]; // æˆ‘çš„çº¢è­¦3é­”æ”¹è¿‡ï¼ˆ
 			if(classNameBuffer.data() != ra3ClassName) {
 				return TRUE;
 			}
-			// ÕâÊÇºì¾¯3½ø³ÌµÄ´°¿Ú£¬ÍêÃÀÆ¥Åä£¬²»ÓÃ¼ÌÐøÕÒÁË
+			// è¿™æ˜¯çº¢è­¦3è¿›ç¨‹çš„çª—å£ï¼Œå®Œç¾ŽåŒ¹é…ï¼Œä¸ç”¨ç»§ç»­æ‰¾äº†
 			data.second = window;
 			return FALSE;
 		}
@@ -414,7 +414,7 @@ int main() {
 
 			auto finalArguments = ra3Path + gameExe + otherArguments + modArgument + replayArgument + configArgument;
 			auto game = createProcess(finalArguments, ra3Path.c_str());
-            // ¼ÙÈçÓÎÏ·ÒÔ´°¿Ú»¯Ä£Ê½Æô¶¯£¬µÈ´ýÓÎÏ·´°¿Ú³öÏÖºó£¬¿ÉÒÔ×Ô¶¯µ÷Õû´°¿ÚÎ»ÖÃ
+			// å‡å¦‚æ¸¸æˆä»¥çª—å£åŒ–æ¨¡å¼å¯åŠ¨ï¼Œç­‰å¾…æ¸¸æˆçª—å£å‡ºçŽ°åŽï¼Œå¯ä»¥è‡ªåŠ¨è°ƒæ•´çª—å£ä½ç½®
 			if(windowed.has_value()) {
 				constexpr auto interval = 499;
 				while(WaitForSingleObject(game.get(), interval) == WAIT_TIMEOUT) {
@@ -426,11 +426,11 @@ int main() {
 						continue;
 					}
 					if(SendMessageTimeoutW(gameWindow, WM_NULL, 0, 0, SMTO_ERRORONEXIT, interval, nullptr) == 0) {
-                        continue;
+						continue;
 					}
 					auto rect = getWindowRect(gameWindow);
 
-                    // ÔÚÈ«ÆÁ´°¿Ú»¯Ä£Ê½ÏÂ£¬×Ô¶¯¾ÓÖÐ´°¿Ú
+					// åœ¨å…¨å±çª—å£åŒ–æ¨¡å¼ä¸‹ï¼Œè‡ªåŠ¨å±…ä¸­çª—å£
 					if(fullscreen.has_value()) {
 						auto desktop = getWindowRect(GetDesktopWindow());
 						if(resolutionX.has_value()) {
@@ -441,7 +441,7 @@ int main() {
 						}
 					}
 
-                    // ¼ÙÈçÍæ¼ÒÔÚÃüÁîÐÐ²ÎÊýÀïÖ¸¶¨ÁË´°¿ÚÎ»ÖÃ£¬¾Í½«´°¿ÚÒÆ¶¯µ½Ö¸¶¨Î»ÖÃ
+					// å‡å¦‚çŽ©å®¶åœ¨å‘½ä»¤è¡Œå‚æ•°é‡ŒæŒ‡å®šäº†çª—å£ä½ç½®ï¼Œå°±å°†çª—å£ç§»åŠ¨åˆ°æŒ‡å®šä½ç½®
 					if(ex.has_value()) {
 						rect.left = ex.value();
 					}
@@ -455,7 +455,7 @@ int main() {
 				}
 			}
 
-            // µÈ´ýÓÎÏ·½áÊø
+			// ç­‰å¾…æ¸¸æˆç»“æŸ
 			WaitForSingleObject(game.get(), INFINITE) >> checkWin32Result("WaitForSingleOnject", errorValue, WAIT_FAILED);
 			auto exitCode = DWORD{0};
 			GetExitCodeProcess(game.get(), &exitCode) >> checkWin32Result("GetExitCodeProcess", errorValue, false);
