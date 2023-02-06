@@ -25,8 +25,8 @@ jobs:
 
       - name: Build RA3.exe
         run: |-
-          g++ -c UserInterface.cpp -o UserInterface.o -Wall -std=c++17 -DUNICODE -D_UNICODE
-          g++ -c main.cpp -o main.o -Wall -std=c++17 -DUNICODE -D_UNICODE
+          g++ -c UserInterface.cpp -o UserInterface.o -O2 -Wall -std=c++17 -DUNICODE -D_UNICODE
+          g++ -c main.cpp -o main.o -Wall -std=c++17 -O2 -DUNICODE -D_UNICODE
           windres -i resource.rc -o resource.res -O coff
           g++ UserInterface.o main.o resource.res -o RA3.exe -mwindows -static-libgcc -static-libstdc++ -lComctl32 -lShlwapi -static -lpthread -s
       - name: Upload a Build Artifact
