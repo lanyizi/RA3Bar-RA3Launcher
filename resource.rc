@@ -11,12 +11,12 @@ FILETYPE VFT_APP
 		BLOCK "040904E4"
 		{
 			VALUE "CompanyName", ""
-			VALUE "FileVersion", "0.9.1.0"
+			VALUE "FileVersion", "0.9.2.0"
 			VALUE "FileDescription", "Unofficial player-made Red Alert 3 game launcher"
 			VALUE "InternalName", ""
 			VALUE "OriginalFilename", ""
 			VALUE "ProductName", "[RA3Bar] Red Alert 3 QuickLoader"
-			VALUE "ProductVersion", "0.9.1.0"
+			VALUE "ProductVersion", "0.9.2.0"
 		}
 	}
 	BLOCK "VarFileInfo" {
