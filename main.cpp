@@ -425,6 +425,9 @@ int main() {
 					if(gameWindow == nullptr) {
 						continue;
 					}
+#ifndef SMTO_ERRORONEXIT // workaround for some outdated version of mingw
+	#define SMTO_ERRORONEXIT 0x0020
+#endif
 					if(SendMessageTimeoutW(gameWindow, WM_NULL, 0, 0, SMTO_ERRORONEXIT, interval, nullptr) == 0) {
 						continue;
 					}
@@ -470,5 +473,4 @@ int main() {
 	}
 	return 0;
 }
-
 
